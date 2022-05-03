@@ -1,20 +1,38 @@
-# If/Else
-> 在 Go 中使用 if 和 else 进行分支是直截了当的。
+# Switch
+> Switch 语句在许多分支中表达条件。
 
-1. 你可以有一个没有 else 的 if 语句。
+1. 您可以使用逗号分隔同一 case 语句中的多个表达式。在此示例中，我们也使用了可选的默认情况。
 ```
-    if 8%4 == 0 {
-        fmt.Println("8 is divisible by 4")
+    switch time.Now().Weekday() {
+    case time.Saturday, time.Sunday:
+        fmt.Println("It's the weekend")
+    default:
+        fmt.Println("It's a weekday")
     }
 ```
-2. 语句可以在条件句之前；此语句中声明的任何变量在所有分支中都可用
+2. 不带表达式的 switch 是表达 if/else 逻辑的另一种方式。在这里，我们还展示了 case 表达式如何可以是非常数。
 ```
-    if num := 9; num < 0 {
-        fmt.Println(num, "is negative")
-    } else if num < 10 {
-        fmt.Println(num, "has 1 digit")
-    } else {
-        fmt.Println(num, "has multiple digits")
+    t := time.Now()
+    switch {
+    case t.Hour() < 12:
+        fmt.Println("It's before noon")
+    default:
+        fmt.Println("It's after noon")
     }
 ```
-> 请注意，Go 中的条件不需要括号，但大括号是必需的。
+3. 类型 switch 比较类型而不是值。您可以使用它来发现接口值的类型。在此示例中，变量 t 将具有与其子句对应的类型。
+```
+    whatAmI := func(i interface{}) {
+        switch t := i.(type) {
+        case bool:
+            fmt.Println("I'm a bool")
+        case int:
+            fmt.Println("I'm an int")
+        default:
+            fmt.Printf("Don't know type %T\n", t)
+        }
+    }
+    whatAmI(true)
+    whatAmI(1)
+    whatAmI("hey")
+```
