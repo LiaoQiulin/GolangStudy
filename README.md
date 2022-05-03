@@ -1,67 +1,47 @@
-# 切片
-> 切片是 Go 中的关键数据类型，它为序列提供了比数组更强大的接口。
+# Maps
+> Maps 是 Go 的内置关联数据类型（在其他语言中有时称为哈希或字典）
 
-1. 与数组不同，切片仅按它们包含的元素（而不是元素的数量）进行类型化。要创建一个非零长度的空切片，请使用内置 make。在这里，我们制作了一段长度为 3 的字符串（最初为零值）。
+1. 要创建一个空 `Map` ，请使用内置 `make`：`make(map[key-type]val-type)`。
 
 ```go
-    s := make([]string, 3)
-    fmt.Println("emp:", s)
-```
-
-2. 我们可以像使用数组一样设置和获取。
-```go
-    s[0] = "a"
-    s[1] = "b"
-    s[2] = "c"
-    fmt.Println("set:", s)
-    fmt.Println("get:", s[2])
+    m := make(map[string]int)
 ```
 
-3. len 按预期返回切片的长度。
+2. 使用典型的 name[key] = val 语法设置键/值对。
 ```go
-    fmt.Println("len:", len(s))
+    m["k1"] = 7
+    m["k2"] = 13
+
+    fmt.Println("map:", m)
 ```
-4. 除了这些基本操作之外，切片还支持更多使其比数组更丰富的操作。一种是内置追加，它返回一个包含一个或多个新值的切片。请注意，我们需要接受 append 的返回值，因为我们可能会得到一个新的 slice 值。
+
+3. 获取名称为 [key] 的键的值。
 ```go
-    s = append(s, "d")
-    s = append(s, "e", "f")
-    fmt.Println("apd:", s)
+    v1 := m["k1"]
+    fmt.Println("v1: ", v1)
 ```
-5. 切片也可以复制。这里我们创建一个与 s 长度相同的空切片 c 并从 s 复制到 c 中。
+
+4. 内置 len 在 Map 上调用时返回键/值对的数量。
 ```go
-    c := make([]string, len(s))
-    copy(c, s)
-    fmt.Println("cpy:", c)
+    fmt.Println("len:", len(m))
 ```
-6. 切片支持使用语法 slice[low:high] 的“切片”运算符。例如，这将获取元素 s[2]、s[3] 和 s[4] 的切片。
+
+5. 内置 delete 从 Map 中删除键/值对。
 ```go
-    l := s[2:5]
-    fmt.Println("sl1:", l)
+    delete(m, "k2")
+    fmt.Println("map:", m)
 ```
-7. 从 s[0] 切片到（但不包括）s[5]。
+
+6. 从映射中获取值时可选的第二个返回值指示该键是否存在于映射中。这可用于消除缺失键和具有零值（如 0 或“”）的键之间的歧义。这里我们不需要值本身，所以我们用空白标识符 _ 忽略它。
 ```go
-    l = s[:5]
-    fmt.Println("sl2:", l)
+    _, prs := m["k2"]
+    fmt.Println("prs:", prs)
 ```
-8. 从（并包括）s[2] 开始切片到（但不包括）s[5]。
+
+7. 还可以使用此语法在同一行中声明和初始化新映射。
 ```go
-    l = s[:5]
-    fmt.Println("sl2:", l)
+    n := map[string]int{"foo": 1, "bar": 2}
+    fmt.Println("map:", n)
 ```
-9. 我们也可以在一行中为 slice 声明和初始化一个变量。
-```go
-    t := []string{"g", "h", "i"}
-    fmt.Println("dcl:", t)
-```
-10. 切片可以组成多维数据结构。与多维数组不同，内部切片的长度可以变化。
-```go
-    twoD := make([][]int, 3)
-    for i := 0; i < 3; i++ {
-        innerLen := i + 1
-        twoD[i] = make([]int, innerLen)
-        for j := 0; j < innerLen; j++ {
-            twoD[i][j] = i + j
-        }
-    }
-    fmt.Println("2d: ", twoD)
-```
+
+> 请注意，当使用 fmt.Println 打印时，地图会以 map[k:v k:v] 的形式出现。
