@@ -1,46 +1,24 @@
-# Rang
-> range 迭代各种数据结构中的元素。让我们看看如何将 range 与我们已经学过的一些数据结构一起使用。
+# 函数
+> 函数是 Go 的核心。
 
-1. 这里我们使用 range 对切片中的数字求和。数组也是这样工作的。
+1. 这是一个函数，它接受两个整数并将它们的总和作为整数返回。Go 需要显式返回，即它不会自动返回最后一个表达式的值。
 ```go
- work like this too.
-
-    nums := []int{2, 3, 4}
-    sum := 0
-    for _, num := range nums {
-        sum += num
-    }
-    fmt.Println("sum:", sum)
+func plus(a int, b int) int {
+    return a + b
+}
 ```
 
-2. 数组和切片上的 range 为每个条目提供索引和值。上面我们不需要索引，所以我们用空白标识符 _ 忽略它。有时我们实际上想要索引。
+2. 当您有多个相同类型的连续参数时，您可以省略类似类型参数的类型名称，直到声明类型的最后一个参数。
 ```go
-    for i, num := range nums {
-        if num == 3 {
-            fmt.Println("index:", i)
-        }
-    }
+func plusPlus(a, b, c int) int {
+    return a + b + c
+}
 ```
 
-3. Map 上的 range 迭代键/值对。
+3. 正如你所期望的那样调用一个函数，使用 name(args)。
 ```go
-    for i, num := range nums {
-        if num == 3 {
-            fmt.Println("index:", i)
-        }
-    }
-```
-
-4. range 也可以只遍历 Map 的键。
-```go
-    for k := range kvs {
-        fmt.Println("key:", k)
-    }
-```
-
-5. 字符串范围迭代 Unicode 代码点。第一个值是符文的起始字节索引，第二个值是符文本身。
-```go
-    for i, c := range "go" {
-        fmt.Println(i, c)
-    }
+    res := plus(1, 2)
+    fmt.Println("1+2 =", res)
+    res = plusPlus(1, 2, 3)
+    fmt.Println("1+2+3 =", res)
 ```
