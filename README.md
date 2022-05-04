@@ -1,24 +1,22 @@
-# 函数
-> 函数是 Go 的核心。
+# 函数:多个返回值
+> Go 内置了对多个返回值的支持。此功能在惯用的 Go 中经常使用，例如从函数返回结果值和错误值。
 
-1. 这是一个函数，它接受两个整数并将它们的总和作为整数返回。Go 需要显式返回，即它不会自动返回最后一个表达式的值。
+1. 此函数签名中的 (int, int) 表明该函数返回 2 个整数。
 ```go
-func plus(a int, b int) int {
-    return a + b
+func vals() (int, int) {
+    return 3, 7
 }
 ```
 
-2. 当您有多个相同类型的连续参数时，您可以省略类似类型参数的类型名称，直到声明类型的最后一个参数。
+2. 使用来自多次赋值的调用的 2 个不同的返回值。
 ```go
-func plusPlus(a, b, c int) int {
-    return a + b + c
-}
+    a, b := vals()
+    fmt.Println(a)
+    fmt.Println(b)
 ```
 
-3. 正如你所期望的那样调用一个函数，使用 name(args)。
+3. 如果您只需要返回值的子集，请使用空白标识符 _。
 ```go
-    res := plus(1, 2)
-    fmt.Println("1+2 =", res)
-    res = plusPlus(1, 2, 3)
-    fmt.Println("1+2+3 =", res)
+    _, c := vals()
+    fmt.Println(c)
 ```
