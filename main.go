@@ -2,22 +2,25 @@ package main
 
 import "fmt"
 
-func intSeq() func() int {
-	i := 0
-	return func() int {
-		i++
-		return i
+func fact(n int) int {
+	if n == 0 {
+		return 1
 	}
+	return n * fact(n-1)
 }
 
 func main() {
+	fmt.Println(fact(7))
 
-	nextInt := intSeq()
+	var fib func(n int) int
 
-	fmt.Println(nextInt())
-	fmt.Println(nextInt())
-	fmt.Println(nextInt())
+	fib = func(n int) int {
+		if n < 2 {
+			return n
+		}
 
-	newInts := intSeq()
-	fmt.Println(newInts())
+		return fib(n-1) + fib(n-2)
+	}
+
+	fmt.Println(fib(7))
 }
