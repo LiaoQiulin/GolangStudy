@@ -1,22 +1,26 @@
-# 函数:多个返回值
-> Go 内置了对多个返回值的支持。此功能在惯用的 Go 中经常使用，例如从函数返回结果值和错误值。
+# 函数:可变函数
+> 可以使用任意数量的尾随参数调用可变参数函数。例如，fmt.Println 是一个常见的可变参数函数。
 
-1. 此函数签名中的 (int, int) 表明该函数返回 2 个整数。
+1. 这是一个将任意数量的整数作为参数的函数。
 ```go
-func vals() (int, int) {
-    return 3, 7
+func sum(nums ...int) {
+    fmt.Print(nums, " ")
+    total := 0
+    for _, num := range nums {
+        total += num
+    }
+    fmt.Println(total)
 }
 ```
 
-2. 使用来自多次赋值的调用的 2 个不同的返回值。
+2. 可以以通常的方式使用单个参数调用可变参数函数。
 ```go
-    a, b := vals()
-    fmt.Println(a)
-    fmt.Println(b)
+    sum(1, 2)
+    sum(1, 2, 3)
 ```
 
-3. 如果您只需要返回值的子集，请使用空白标识符 _。
+3. 如果切片中已经有多个参数，请像这样使用 func(slice...) 将它们应用于可变参数函数。
 ```go
-    _, c := vals()
-    fmt.Println(c)
+    nums := []int{1, 2, 3, 4}
+    sum(nums...)
 ```
