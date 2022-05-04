@@ -1,42 +1,62 @@
-# 指针
-> Go 字符串是只读的字节片。语言和标准库特别对待字符串 - 作为以 UTF-8 编码的文本容器。在其他语言中，字符串由“字符”组成。在 Go 中，字符的概念称为符文——它是一个表示 Unicode 代码点的整数。[这篇 Go 博客文章](https://go.dev/blog/strings)很好地介绍了该主题。
+# Structs/结构
+> Go 的结构是字段的类型化集合。它们对于将数据组合在一起以形成记录很有用。
 
-1. s 是一个字符串，它分配了一个文字值，表示泰语中的单词“hello”。 Go 字符串文字是 UTF-8 编码的文本
+1. 此 person 结构类型具有 name 和 age 字段。
 ```go
-    const s = "สวัสดี"
+type person struct {
+    name string
+    age  int
+}
 ```
 
-2. 由于字符串等价于 []byte，这将产生存储在其中的原始字节的长度。
+2. newPerson 构造一个具有给定名称的person结构。
 ```go
-    fmt.Println("Len:", len(s))
+func newPerson(name string) *person {
+    p := person{name: name}
+    p.age = 42
+    return &p
+}
 ```
 
-3. 对字符串进行索引会在每个索引处生成原始字节值。此循环生成构成 s 中代码点的所有字节的十六进制值。
+3. 此语法创建一个新结构。
 ```go
-    for i := 0; i < len(s); i++ {
-        fmt.Printf("%x ", s[i])
-    }
-    fmt.Println()
+    fmt.Println(person{"Bob", 20})
 ```
 
-4. 要计算一个字符串中有多少个符文，我们可以使用 utf8 包。请注意，RuneCountInString 的运行时间取决于字符串的大小，因为它必须按顺序解码每个 UTF-8 符文。一些泰语字符由多个 UTF-8 代码点表示，因此这个计数的结果可能会令人惊讶。
+4. 您可以在初始化结构时命名字段。
 ```go
-fmt.Println("Rune count:", utf8.RuneCountInString(s))
+    fmt.Println(person{name: "Alice", age: 30})
 ```
 
-5. 范围循环专门处理字符串并解码每个符文及其在字符串中的偏移量。
+5. 省略的字段将为零值。
 ```go
-    for idx, runeValue := range s {
-        fmt.Printf("%#U starts at %d\n", runeValue, idx)
-    }
+    fmt.Println(person{name: "Fred"})
 ```
 
-6. 我们可以通过显式使用 utf8.DecodeRuneInString 函数来实现相同的迭代。
+6. & 前缀产生一个指向结构的指针。
 ```go
-    fmt.Println("\nUsing DecodeRuneInString")
-    for i, w := 0, 0; i < len(s); i += w {
-        runeValue, width := utf8.DecodeRuneInString(s[i:])
-        fmt.Printf("%#U starts at %d\n", runeValue, i)
-        w = width
-    }
+    fmt.Println(&person{name: "Ann", age: 40})
+```
+
+7. 将新的结构创建封装在构造函数中是惯用的
+```go
+    fmt.Println(newPerson("Jon"))
+```
+
+8. 使用点访问结构字段。
+```go
+    s := person{name: "Sean", age: 50}
+    fmt.Println(s.name)
+```
+
+9. 还可以将点与结构指针一起使用 - 指针会自动取消引用。
+```go
+    sp := &s
+    fmt.Println(sp.age)
+```
+
+10. 结构是可变的。
+```go
+    sp.age = 51
+    fmt.Println(sp.age)
 ```
