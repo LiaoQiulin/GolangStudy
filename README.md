@@ -1,26 +1,27 @@
-# 函数:可变参数函数
-> 可以使用任意数量的尾随参数调用可变参数函数。例如，fmt.Println 是一个常见的可变参数函数。
+# 函数:闭包
+> Go 支持匿名函数，可以形成闭包。当您想内联定义函数而不必命名时，匿名函数很有用。
 
-1. 这是一个将任意数量的整数作为参数的函数。
+1. 这个函数 intSeq 返回另一个函数，我们在 intSeq 的主体中匿名定义。返回的函数关闭变量 i 以形成一个闭包。
 ```go
-func sum(nums ...int) {
-    fmt.Print(nums, " ")
-    total := 0
-    for _, num := range nums {
-        total += num
+func intSeq() func() int {
+    i := 0
+    return func() int {
+        i++
+        return i
     }
-    fmt.Println(total)
 }
 ```
 
-2. 可以以通常的方式使用单个参数调用可变参数函数。
+2. 我们调用 intSeq，将结果（一个函数）分配给 nextInt。这个函数值捕获自己的 i 值，每次调用 nextInt 时都会更新。
 ```go
-    sum(1, 2)
-    sum(1, 2, 3)
+    nextInt := intSeq()
+    fmt.Println(nextInt())
+    fmt.Println(nextInt())
+    fmt.Println(nextInt())
 ```
 
-3. 如果切片中已经有多个参数，请像这样使用 func(slice...) 将它们应用于可变参数函数。
+3. 要确认该状态对于该特定功能是唯一的，请创建并测试一个新状态。
 ```go
-    nums := []int{1, 2, 3, 4}
-    sum(nums...)
+    newInts := intSeq()
+    fmt.Println(newInts())
 ```
