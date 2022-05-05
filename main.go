@@ -1,52 +1,46 @@
 package main
 
-import (
-	"fmt"
-	"math"
-)
+import "fmt"
 
-// 这是几何形状的基本接口。
-type geometry interface {
-	area() float64
-	perim() float64
+type base struct {
+	num int
 }
 
-// 我们将在 rect 和 circle 类型上实现此接口。
-type rect struct {
-	width, height float64
-}
-type circle struct {
-	radius float64
+func (b base) describe() string {
+	return fmt.Sprintf("base with num=%v", b.num)
 }
 
-// 在 Go 中实现一个接口，我们只需要实现接口中的所有方法。在这里，我们在 rect 上实现 geometry 。
-func (r rect) area() float64 {
-	return r.width * r.height
-}
-func (r rect) perim() float64 {
-	return 2*r.width + 2*r.height
-}
-
-// circle 实现 geometry
-func (c circle) area() float64 {
-	return math.Pi * c.radius * c.radius
-}
-func (c circle) perim() float64 {
-	return 2 * math.Pi * c.radius
-}
-
-// 如果变量具有接口类型，那么我们可以调用命名接口中的方法。这是一个通用测量函数，利用它来处理任何几何图形。
-func measure(g geometry) {
-	fmt.Println(g)
-	fmt.Println(g.area())
-	fmt.Println(g.perim())
+// container 嵌入 base。嵌入看起来像一个没有名称的字段。
+type container struct {
+	base
+	str string
 }
 
 func main() {
-	r := rect{width: 3, height: 4}
-	c := circle{radius: 5}
 
-	// circle 和 rect 结构类型都实现了几何接口，因此我们可以使用这些结构的实例作为参数来 measure。
-	measure(r)
-	measure(c)
+	// 当使用文字创建结构时，我们必须显式初始化嵌入；这里嵌入类型用作字段名称。
+	co := container{
+		base: base{
+			num: 1,
+		},
+		str: "some name",
+	}
+
+	// 直接在 co 上访问 base 的字段，例如 co.num
+	fmt.Printf("co={num: %v, str: %v}\n", co.num, co.str)
+
+	// 或者，我们可以使用嵌入的类型名称拼出完整路径。
+	fmt.Println("also num:", co.base.num)
+
+	// 由于容器内嵌了base，所以base的方法也变成了容器的方法。在这里，我们调用一个直接从 co 的 base 嵌入的方法。
+	fmt.Println("describe:", co.describe())
+
+	type describer interface {
+		describe() string
+	}
+
+	// 使用方法嵌入结构可用于将接口实现赋予其他结构。在这里，我们看到一个容器现在实现了描述器接口，因为它嵌入了基础。
+	var d describer = co
+	fmt.Println("describer:", d.describe())
+
 }
