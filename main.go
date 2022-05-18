@@ -2,40 +2,37 @@ package main
 
 import "fmt"
 
-// 通道上的基本发送和接收是阻塞的。
-// 但是，我们可以使用带有 default 子句的 select 来实现非阻塞发送、接收，甚至是非阻塞多路选择。
+// 关闭通道表示将不再在其上发送任何值。这对于向通道的接收者传达完成信息很有用。
 func main() {
-	messages := make(chan string)
-	signals := make(chan bool)
 
-	// 这是一个非阻塞接收。
-	// 如果消息上有可用的值，则 select 将采用具有该值的 <-messages 大小写。
-	// 如果不是，它将立即采用默认情况。
-	select {
-	case msg := <-messages:
-		fmt.Println("received message", msg)
-	default:
-		fmt.Println("no message received")
-	}
+	// 在本例中，我们将使用 jobs 通道将要完成的工作从 main() goroutine 传递到 worker goroutine。
+	// 当工人没有更多 jobs 时，我们将关闭工作通道。
+	jobs := make(chan int, 5)
+	done := make(chan bool)
 
-	// 非阻塞发送的工作方式类似。
-	// 这里 msg 不能发送到消息通道，因为通道没有缓冲区，也没有接收器。因此选择默认情况。
-	msg := "hi"
-	select {
-	case messages <- msg:
-		fmt.Println("sent message", msg)
-	default:
-		fmt.Println("no message sent")
-	}
+	// 这是 worker goroutine。它反复通过 j, more := <-jobs 从 jobs 接收 job。
+	// 在这种特殊的 2-value 形式的接收中，如果作业已关闭并且通道中的所有值都已被接收，则 more 值将为 false。
+	// 当我们完成所有工作时，我们使用它来通知完成。
+	go func() {
+		for {
+			j, more := <-jobs
+			if more {
+				fmt.Println("received job", j)
+			} else {
+				fmt.Println("received all jobs")
+				done <- true
+				return
+			}
+		}
+	}()
 
-	// 我们可以在 default 子句之上使用多种情况来实现多路非阻塞选择。
-	// 在这里，我们尝试对消息和信号进行非阻塞接收。
-	select {
-	case msg := <-messages:
-		fmt.Println("received message", msg)
-	case sig := <-signals:
-		fmt.Println("received signal", sig)
-	default:
-		fmt.Println("no activity")
+	// 这会通过 jobs 通道向工作人员发送 3 个jobs，然后将其关闭。
+	for j := 1; j <= 3; j++ {
+		jobs <- j
+		fmt.Println("sent job", j)
 	}
+	close(jobs)
+	fmt.Println("sent all jobs")
+
+	<-done
 }
