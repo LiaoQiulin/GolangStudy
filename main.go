@@ -2,37 +2,17 @@ package main
 
 import "fmt"
 
-// 关闭通道表示将不再在其上发送任何值。这对于向通道的接收者传达完成信息很有用。
+// 我们可以使用 range 迭代从通道接收到的值。
 func main() {
 
-	// 在本例中，我们将使用 jobs 通道将要完成的工作从 main() goroutine 传递到 worker goroutine。
-	// 当工人没有更多 jobs 时，我们将关闭工作通道。
-	jobs := make(chan int, 5)
-	done := make(chan bool)
+	// 我们将在队列通道中迭代 2 个值。
+	queue := make(chan string, 2)
+	queue <- "one"
+	queue <- "two"
+	close(queue)
 
-	// 这是 worker goroutine。它反复通过 j, more := <-jobs 从 jobs 接收 job。
-	// 在这种特殊的 2-value 形式的接收中，如果作业已关闭并且通道中的所有值都已被接收，则 more 值将为 false。
-	// 当我们完成所有工作时，我们使用它来通知完成。
-	go func() {
-		for {
-			j, more := <-jobs
-			if more {
-				fmt.Println("received job", j)
-			} else {
-				fmt.Println("received all jobs")
-				done <- true
-				return
-			}
-		}
-	}()
-
-	// 这会通过 jobs 通道向工作人员发送 3 个jobs，然后将其关闭。
-	for j := 1; j <= 3; j++ {
-		jobs <- j
-		fmt.Println("sent job", j)
+	// range 会迭代从 queue 中接收到每个元素。因为我们关闭了上面的通道，所以迭代在接收到 2 个元素后终止。
+	for elem := range queue {
+		fmt.Println(elem)
 	}
-	close(jobs)
-	fmt.Println("sent all jobs")
-
-	<-done
 }

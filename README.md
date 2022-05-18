@@ -1,1 +1,1 @@
-# 关闭通道
+# Range over Channels
