@@ -1,29 +1,24 @@
 package main
 
-import (
-	"fmt"
-	"time"
-)
+import "fmt"
 
-// 我们可以使用通道来同步跨 goroutine 的执行。这是一个使用阻塞接收来等待 goroutine 完成的示例。
-// 当等待多个 goroutine 完成时，您可能更喜欢使用 WaitGroup。
+// 当使用通道作为函数参数时，您可以指定通道是否仅用于发送或接收值。这种特殊性增加了程序的类型安全性。
 
-// 这是我们将在 goroutine 中运行的函数。 done 通道将用于通知另一个 goroutine 该函数的工作已完成。
-func worker(done chan bool) {
-	fmt.Print("working...")
-	time.Sleep(time.Second)
-	fmt.Println("done")
+// 此 ping 函数仅接受用于发送值的通道。尝试在此通道上接收将是编译时错误。
+func ping(pings chan<- string, msg string) {
+	pings <- msg
+}
 
-	// 发送一个值来通知我们已经完成。
-	done <- true
+// pong 函数接受一个通道用于接收（pings）和第二个通道用于发送（pongs）。
+func pong(pings <-chan string, pongs chan<- string) {
+	msg := <-pings
+	pongs <- msg
 }
 
 func main() {
-
-	// 启动一个worker goroutine，为其提供通知通道。
-	done := make(chan bool, 1)
-	go worker(done)
-
-	// 阻塞，直到我们在频道上收到 worker 的通知。
-	<-done
+	pings := make(chan string, 1)
+	pongs := make(chan string, 1)
+	ping(pings, "passed message")
+	pong(pings, pongs)
+	fmt.Println(<-pongs)
 }
