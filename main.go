@@ -1,35 +1,20 @@
 package main
 
-import (
-	"fmt"
-	"time"
-)
-
-func f(from string) {
-	for i := 0; i < 3; i++ {
-		fmt.Println(from, ":", i)
-		time.Sleep(time.Microsecond)
-	}
-}
+import "fmt"
 
 func main() {
 
-	// 假设我们有一个函数调用 f(s)。这是我们如何以通常的方式调用它，同步运行它。
-	f("direct")
+	// 通道是连接并发 goroutine 的管道。您可以将值从一个 goroutine 发送到通道，然后将这些值接收到另一个 goroutine。
 
-	// 要在 goroutine 中调用此函数，请使用 go f(s)。这个新的 goroutine 将与调用的 goroutine 同时执行。
-	go f("goroutine")
+	// 使用 make(chan val-type) 创建一个新频道。通道按它们传达的值进行分类。
+	messages := make(chan string)
 
-	// 您还可以为匿名函数调用启动一个 goroutine。
-	go func(msg string) {
-		fmt.Println(msg)
-	}("going")
+	// 使用通道 <- 语法将值发送到通道。在这里，我们从一个新的 goroutine 向我们上面创建的消息通道发送“ping”。
+	go func() { messages <- "ping" }()
 
-	fmt.Println("sleep")
-	// 我们的两个函数调用现在在不同的 goroutine 中异步运行。等待他们完成
-	time.Sleep(time.Second)
-	fmt.Println("done")
+	// <-channel 语法从通道接收一个值。在这里，我们将收到我们上面发送的“ping”消息并将其打印出来。
+	msg := <-messages
+	fmt.Println(msg)
 
-	// 我们运行这个程序时，我们首先看到阻塞调用的输出，然后是两个 goroutine 的输出。
-	// goroutines 的输出可能是交错的，因为 goroutines 是由 Go 运行时并发运行的。
+	// 默认情况下，发送和接收会阻塞，直到发送方和接收方都准备好。该属性允许我们在程序结束时等待“ping”消息，而无需使用任何其他同步
 }
