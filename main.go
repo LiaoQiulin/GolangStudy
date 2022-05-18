@@ -1,60 +1,65 @@
 package main
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
-// 作为泛型函数的一个示例，MapKeys 采用任何类型的映射并返回其键的切片。
-// 这个函数有两个类型参数——K和V；
-// K 具有可比较约束，这意味着我们可以使用 == 和 != 运算符比较这种类型的值。这是 Go 中的映射键所必需的。
-// V 具有 any 约束，这意味着它不受任何限制（any 是 interface{} 的别名）。
-func MapKeys[K comparable, V any](m map[K]V) []K {
-	r := make([]K, 0, len(m))
-	for k := range m {
-		r = append(r, k)
+// 在 Go 中，通过显式的、单独的返回值来传达错误是惯用的。
+
+// 按照惯例，errors 是最后一个返回值，并且具有 error 类型，一个内置接口。
+func f1(arg int) (int, error) {
+	if arg == 42 {
+
+		// errors.New 使用给定的错误消息构造一个基本错误值。
+		return -1, errors.New("can't work with 42")
+
 	}
-	return r
+
+	// 错误位置的 nil 值表示没有错误。
+	return arg + 3, nil
 }
 
-// List 是具有任何类型值的单向链表。
-type List[T any] struct {
-	head, tail *element[T]
+// 通过在自定义类型上实现 Error() 方法，可以将自定义类型用作 error 。这是上面示例的一个变体，它使用自定义类型来显式表示参数错误。
+type argError struct {
+	arg  int
+	prob string
 }
 
-type element[T any] struct {
-	next *element[T]
-	val  T
+func (e *argError) Error() string {
+	return fmt.Sprintf("%d - %s", e.arg, e.prob)
 }
 
-// 我们可以像在常规类型上一样在泛型类型上定义方法，但是我们必须保留类型参数。类型是 List[T]，而不是 List。
-func (lst *List[T]) Push(v T) {
-	if lst.tail == nil {
-		lst.head = &element[T]{val: v}
-		lst.tail = lst.head
-	} else {
-		lst.tail.next = &element[T]{val: v}
-		lst.tail = lst.tail.next
+func f2(arg int) (int, error) {
+	if arg == 42 {
+
+		// 在这种情况下，我们使用 &argError 语法来构建一个新结构，为两个字段 arg 和 prob 提供值。
+		return -1, &argError{arg, "can't work with it"}
 	}
-}
-
-func (lst *List[T]) GetAll() []T {
-	var elems []T
-	for e := lst.head; e != nil; e = e.next {
-		elems = append(elems, e.val)
-	}
-	return elems
+	return arg + 3, nil
 }
 
 func main() {
-	var m = map[int]string{1: "2", 2: "4", 4: "8"}
 
-	// 在调用泛型函数时，我们通常可以依赖类型推断。请注意，我们不必在调用 MapKeys 时指定 K 和 V 的类型 - 编译器会自动推断它们。
-	fmt.Println("keys m:", MapKeys(m))
+	for _, i := range []int{7, 42} {
+		if r, e := f1(i); e != nil {
+			fmt.Println("f1 failed:", e)
+		} else {
+			fmt.Println("f1 worked:", r)
+		}
+	}
+	for _, i := range []int{7, 42} {
+		if r, e := f2(i); e != nil {
+			fmt.Println("f2 failed:", e)
+		} else {
+			fmt.Println("f2 worked:", r)
+		}
+	}
 
-	// 尽管我们也可以明确指定它们。
-	_ = MapKeys[int, string](m)
-
-	lst := List[int]{}
-	lst.Push(10)
-	lst.Push(13)
-	lst.Push(23)
-	fmt.Println("list:", lst.GetAll())
+	// 如果您想以编程方式使用自定义错误中的数据，则需要通过类型断言将错误作为自定义错误类型的实例。
+	_, e := f2(42)
+	if ae, ok := e.(*argError); ok {
+		fmt.Println(ae.arg)
+		fmt.Println(ae.prob)
+	}
 }
