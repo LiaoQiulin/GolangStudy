@@ -2,45 +2,59 @@ package main
 
 import "fmt"
 
-type base struct {
-	num int
+// 作为泛型函数的一个示例，MapKeys 采用任何类型的映射并返回其键的切片。
+// 这个函数有两个类型参数——K和V；
+// K 具有可比较约束，这意味着我们可以使用 == 和 != 运算符比较这种类型的值。这是 Go 中的映射键所必需的。
+// V 具有 any 约束，这意味着它不受任何限制（any 是 interface{} 的别名）。
+func MapKeys[K comparable, V any](m map[K]V) []K {
+	r := make([]K, 0, len(m))
+	for k := range m {
+		r = append(r, k)
+	}
+	return r
 }
 
-func (b base) describe() string {
-	return fmt.Sprintf("base with num=%v", b.num)
+// List 是具有任何类型值的单向链表。
+type List[T any] struct {
+	head, tail *element[T]
 }
 
-// container 嵌入 base。嵌入看起来像一个没有名称的字段。
-type container struct {
-	base
-	str string
+type element[T any] struct {
+	next *element[T]
+	val  T
+}
+
+// 我们可以像在常规类型上一样在泛型类型上定义方法，但是我们必须保留类型参数。类型是 List[T]，而不是 List。
+func (lst *List[T]) Push(v T) {
+	if lst.tail == nil {
+		lst.head = &element[T]{val: v}
+		lst.tail = lst.head
+	} else {
+		lst.tail.next = &element[T]{val: v}
+		lst.tail = lst.tail.next
+	}
+}
+
+func (lst *List[T]) GetAll() []T {
+	var elems []T
+	for e := lst.head; e != nil; e = e.next {
+		elems = append(elems, e.val)
+	}
+	return elems
 }
 
 func main() {
+	var m = map[int]string{1: "2", 2: "4", 4: "8"}
 
-	// 当使用文字创建结构时，我们必须显式初始化嵌入；这里嵌入类型用作字段名称。
-	co := container{
-		base: base{
-			num: 1,
-		},
-		str: "some name",
-	}
+	// 在调用泛型函数时，我们通常可以依赖类型推断。请注意，我们不必在调用 MapKeys 时指定 K 和 V 的类型 - 编译器会自动推断它们。
+	fmt.Println("keys m:", MapKeys(m))
 
-	// 直接在 co 上访问 base 的字段，例如 co.num
-	fmt.Printf("co={num: %v, str: %v}\n", co.num, co.str)
+	// 尽管我们也可以明确指定它们。
+	_ = MapKeys[int, string](m)
 
-	// 或者，我们可以使用嵌入的类型名称拼出完整路径。
-	fmt.Println("also num:", co.base.num)
-
-	// 由于容器内嵌了base，所以base的方法也变成了容器的方法。在这里，我们调用一个直接从 co 的 base 嵌入的方法。
-	fmt.Println("describe:", co.describe())
-
-	type describer interface {
-		describe() string
-	}
-
-	// 使用方法嵌入结构可用于将接口实现赋予其他结构。在这里，我们看到一个容器现在实现了描述器接口，因为它嵌入了基础。
-	var d describer = co
-	fmt.Println("describer:", d.describe())
-
+	lst := List[int]{}
+	lst.Push(10)
+	lst.Push(13)
+	lst.Push(23)
+	fmt.Println("list:", lst.GetAll())
 }
