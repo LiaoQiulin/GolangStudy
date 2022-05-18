@@ -1,19 +1,29 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
+
+// 我们可以使用通道来同步跨 goroutine 的执行。这是一个使用阻塞接收来等待 goroutine 完成的示例。
+// 当等待多个 goroutine 完成时，您可能更喜欢使用 WaitGroup。
+
+// 这是我们将在 goroutine 中运行的函数。 done 通道将用于通知另一个 goroutine 该函数的工作已完成。
+func worker(done chan bool) {
+	fmt.Print("working...")
+	time.Sleep(time.Second)
+	fmt.Println("done")
+
+	// 发送一个值来通知我们已经完成。
+	done <- true
+}
 
 func main() {
 
-	// 默认情况下，通道是无缓冲的，这意味着如果有相应的接收 (<- chan) 准备好接收发送的值，它们将只接受发送 (chan <-)。缓冲通道接受有限数量的值，而这些值没有相应的接收器。
+	// 启动一个worker goroutine，为其提供通知通道。
+	done := make(chan bool, 1)
+	go worker(done)
 
-	// 在这里，我们创建了一个字符串通道，最多可缓冲 2 个值。
-	messages := make(chan string, 2)
-
-	// 因为这个通道是缓冲的，我们可以将这些值发送到通道中，而无需相应的并发接收。
-	messages <- "buffered"
-	messages <- "channel"
-
-	// 稍后我们可以像往常一样接收这两个值。
-	fmt.Println(<-messages)
-	fmt.Println(<-messages)
+	// 阻塞，直到我们在频道上收到 worker 的通知。
+	<-done
 }
