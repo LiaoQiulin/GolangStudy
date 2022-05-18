@@ -1,24 +1,34 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-// 当使用通道作为函数参数时，您可以指定通道是否仅用于发送或接收值。这种特殊性增加了程序的类型安全性。
-
-// 此 ping 函数仅接受用于发送值的通道。尝试在此通道上接收将是编译时错误。
-func ping(pings chan<- string, msg string) {
-	pings <- msg
-}
-
-// pong 函数接受一个通道用于接收（pings）和第二个通道用于发送（pongs）。
-func pong(pings <-chan string, pongs chan<- string) {
-	msg := <-pings
-	pongs <- msg
-}
-
+// Go 的 select 让你等待多个通道操作。将 goroutine 和通道与 select 相结合是 Go 的一个强大功能。
 func main() {
-	pings := make(chan string, 1)
-	pongs := make(chan string, 1)
-	ping(pings, "passed message")
-	pong(pings, pongs)
-	fmt.Println(<-pongs)
+
+	// 对于我们的示例，我们将跨两个通道进行选择。
+	c1 := make(chan string)
+	c2 := make(chan string)
+
+	// 每个通道都会在一段时间后收到一个值，以模拟例如阻塞在并发 goroutine 中执行的 RPC 操作。
+	go func() {
+		time.Sleep(1 * time.Second)
+		c1 <- "one"
+	}()
+	go func() {
+		time.Sleep(2 * time.Second)
+		c2 <- "two"
+	}()
+
+	// 我们将使用 select 同时等待这两个值，并在每个值到达时打印它们。
+	for i := 0; i < 2; i++ {
+		select {
+		case msg1 := <-c1:
+			fmt.Println("received", msg1)
+		case msg2 := <-c2:
+			fmt.Println("received", msg2)
+		}
+	}
 }
