@@ -5,28 +5,42 @@ import (
 	"time"
 )
 
-// ticker适用于您想定期重复做某事。这是一个周期性滴答的代码示例，直到我们停止它
+// 在本例中，我们将了解如何使用 goroutine 和通道实现工作池。
+
+// 这是worker，我们将在其中运行几个并发实例。
+// 这些工作人员将在 jobs 通道上接收工作，并在 results 上发送相应的结果。
+// 我们将为每个作业睡一秒钟以模拟一项耗时的任务。
+func worker(id int, jobs <-chan int, results chan<- int) {
+	for j := range jobs {
+		fmt.Println("worker", id, "started  job", j)
+		time.Sleep(time.Second)
+		fmt.Println("worker", id, "finished job", j)
+		results <- j * 2
+	}
+}
+
 func main() {
 
-	// Tickers 使用与计时器类似的机制：发送值的通道。
-	// 在这里，我们将使用通道上的 select 内置函数来等待每 500 毫秒到达的值。
-	ticker := time.NewTicker(500 * time.Millisecond)
-	done := make(chan bool)
+	// 为了使用我们的工人池，我们需要向他们发送工作并收集他们的结果。我们为此制作了 2 个通道。
+	const numJobs = 5
+	jobs := make(chan int, numJobs)
+	results := make(chan int, numJobs)
 
-	go func() {
-		for {
-			select {
-			case <-done:
-				return
-			case t := <-ticker.C:
-				fmt.Println("Tick at", t)
-			}
-		}
-	}()
+	// 这启动了 3 个工作人员，最初被阻止是因为还没有工作。
+	for w := 1; w <= 3; w++ {
+		go worker(w, jobs, results)
+	}
 
-	// ticker 可以像计时器一样停止。一旦代码停止，它将不会在其通道上接收任何值。我们将在 1600 毫秒后停止。
-	time.Sleep(1600 * time.Millisecond)
-	ticker.Stop()
-	done <- true
-	fmt.Println("Ticker stopped")
+	// 在这里，我们发送 5 个工作，然后关闭该通道以表明这就是我们所有的工作。
+	for j := 1; j <= numJobs; j++ {
+		jobs <- j
+	}
+	close(jobs)
+
+	// 最后我们收集所有工作的结果。这也确保了工作者 goroutines 已经完成。等待多个 goroutine 的另一种方法是使用 WaitGroup
+	for a := 1; a <= numJobs; a++ {
+		<-results
+	}
+
+	// 我们的运行程序显示了由不同工人执行的 5 个作业。该程序只需要大约 2 秒，尽管总共做了大约 5 秒的工作，因为有 3 名工人同时操作。
 }
