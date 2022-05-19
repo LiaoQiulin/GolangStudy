@@ -3,38 +3,50 @@ package main
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 )
 
+// 在前面的示例中，我们看到了如何使用原子操作来管理简单的计数器状态。
+// 对于更复杂的状态，我们可以使用互斥锁跨多个 goroutine 安全地访问数据。
+
+// Container 里有一个map字段；由于我们想从多个 goroutine 中同时更新它，我们添加了一个 Mutex 来同步访问。
+// 请注意，互斥锁不能被复制，所以如果这个结构被传递，它应该通过指针来完成。
+type Container struct {
+	mu       sync.Mutex
+	counters map[string]int
+}
+
+// 在访问计数器之前锁定互斥锁；使用 defer 语句在函数末尾解锁它。
+func (c *Container) inc(name string) {
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.counters[name]++
+}
+
 func main() {
+	// 请注意，互斥锁的零值可以按原样使用，因此这里不需要初始化。
+	c := Container{
 
-	// 我们将使用一个无符号整数来表示我们的（始终为正的）计数器
-	var ops uint64
-
-	// WaitGroup 将帮助我们等待所有 goroutine 完成它们的工作。
-	var wg sync.WaitGroup
-
-	// 我们将启动 50 个 goroutine，每个 goroutine 将计数器递增 1000 次。
-	for i := 0; i < 50; i++ {
-		wg.Add(1)
-
-		// 为了原子地增加计数器，我们使用 AddUint64，使用 & 语法给它我们的操作计数器的内存地址作为入参。
-		go func() {
-			defer wg.Done()
-			for c := 0; c < 1000; c++ {
-
-				// ops++
-				atomic.AddUint64(&ops, 1)
-			}
-		}()
+		counters: map[string]int{"a": 0, "b": 0},
 	}
 
-	// 等到所有的 goroutine 都完成。
+	var wg sync.WaitGroup
+
+	// 此函数在循环中递增命名计数器。
+	doIncrement := func(name string, n int) {
+		for i := 0; i < n; i++ {
+			c.inc(name)
+		}
+		wg.Done()
+	}
+
+	// 同时运行多个 goroutine；请注意，它们都访问同一个 Container，其中两个访问同一个计数器。
+	wg.Add(3)
+	go doIncrement("a", 10000)
+	go doIncrement("a", 10000)
+	go doIncrement("b", 10000)
+
+	// 等待 goroutine 完成
 	wg.Wait()
-
-	// 现在访问 ops 是安全的，因为我们知道没有其他 goroutine 正在写入它。使用 atomic.LoadUint64 等函数也可以在更新原子时安全地读取它们。
-	fmt.Println("ops:", ops)
-
-	// 我们预计将完成 50,000 次操作。如果我们使用非原子操作++来增加计数器，我们可能会得到一个不同的数字，在运行之间改变，因为 goroutines 会相互干扰。
-	// 此外，当使用 -race 标志运行时，我们会遇到数据竞争失败。
+	fmt.Println(c.counters)
 }
