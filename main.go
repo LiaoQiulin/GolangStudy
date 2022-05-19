@@ -1,18 +1,45 @@
 package main
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
-// panic 通常意味着出现意外错误。
-// 大多数情况下，我们使用它来快速解决在正常操作期间不应该发生的错误，或者我们没有准备好优雅处理的错误。
+// Defer 用于确保在程序执行的后期执行函数调用，通常用于清理目的。
+//  defer 经常用于例如 ensure  和 finally  在其他语言使用的地方。
+
+// 假设我们想创建一个文件，写入它，然后在完成后关闭。下面是我们如何使用 defer 来做到这一点。
 func main() {
 
-	// 我们将在整个站点中使用 panic 来检查意外错误。这是该网站上唯一旨在 panic 的程序。
-	panic("a problem")
+	// 在使用 createFile 获取文件对象后，我们立即使用 closeFile 推迟关闭该文件。
+	// 这将在 writeFile 完成后，在封闭函数（main）的末尾执行。
+	f := createFile("D://defer.txt")
+	defer closeFile(f)
+	writeFile(f)
+}
 
-	// 如果一个函数返回一个我们不知道如何（或想要）处理的错误值，panic 的一个常见用途是中止。
-	// 如果我们在创建新文件时遇到意外错误，这是一个 panic 的例子
-	_, err := os.Create("/tmp/file")
+func createFile(p string) *os.File {
+	fmt.Println("creating")
+	f, err := os.Create(p)
 	if err != nil {
 		panic(err)
+	}
+	return f
+}
+
+func writeFile(f *os.File) {
+	fmt.Println("writing")
+	fmt.Fprintln(f, "data")
+
+}
+
+// 关闭文件时检查错误很重要，即使在延迟函数中也是如此。
+func closeFile(f *os.File) {
+	fmt.Println("closing")
+	err := f.Close()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
 }
