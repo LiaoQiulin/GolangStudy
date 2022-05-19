@@ -1,30 +1,30 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	s "strings"
+)
 
-// Go 可以通过使用 recover 内置函数从 panic 中恢复。 recover 可以阻止 panic 中止程序并让它继续执行。
+// 标准库的字符串包提供了许多有用的字符串相关函数。以下是一些示例，可让您了解包装。
 
-// 一个有用的例子：如果一个客户端连接出现严重错误，服务器不希望崩溃。
-// 相反，服务器会想要关闭该连接并继续为其他客户端提供服务。事实上，这就是 Go 的 net/http 默认为 HTTP 服务器所做的。
+// 我们将 fmt.Println 别名为一个较短的名称，因为我们将在下面大量使用它。
+var p = fmt.Println
 
-// 这个函数 panic 。
-func mayPanic() {
-	panic("a problem")
-}
-
-// 必须在 defer 函数中调用 recover 。当封闭函数发生 panic 时，defer 将激活并且其中的恢复调用将捕获 panic。
 func main() {
 
-	defer func() {
-		// recover 的返回值是调用 panic 时引发的错误。
-		if r := recover(); r != nil {
-
-			fmt.Println("Recovered. Error:\n", r)
-		}
-	}()
-
-	mayPanic()
-
-	// 这段代码不会运行，因为 mayPanic 出现恐慌。 main 的执行在 panic 点停止，并在 defer 关闭时恢复。
-	fmt.Println("After mayPanic()")
+	// 这是字符串中可用函数的示例。
+	// 由于这些是包中的函数，而不是字符串对象本身的方法，因此我们需要将要处理的字符串作为第一个参数传递给函数。
+	// 您可以在字符串包文档中找到更多功能。
+	p("Contains:  ", s.Contains("test", "es"))
+	p("Count:     ", s.Count("test", "t"))
+	p("HasPrefix: ", s.HasPrefix("test", "te"))
+	p("HasSuffix: ", s.HasSuffix("test", "st"))
+	p("Index:     ", s.Index("test", "e"))
+	p("Join:      ", s.Join([]string{"a", "b"}, "-"))
+	p("Repeat:    ", s.Repeat("a", 5))
+	p("Replace:   ", s.Replace("foo", "o", "0", -1))
+	p("Replace:   ", s.Replace("foo", "o", "0", 1))
+	p("Split:     ", s.Split("a-b-c-d-e", "-"))
+	p("ToLower:   ", s.ToLower("TEST"))
+	p("ToUpper:   ", s.ToUpper("test"))
 }
