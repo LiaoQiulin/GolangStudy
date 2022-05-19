@@ -2,43 +2,56 @@ package main
 
 import (
 	"fmt"
-	"sync"
 	"time"
 )
 
-// 要等待多个 goroutine 完成，我们可以使用等待组。
-
-// 这是我们将在每个 goroutine 中运行的函数。
-func worker(id int) {
-	fmt.Printf("Worker %d starting\n", id)
-
-	// 睡眠以模拟耗时任务。
-	time.Sleep(time.Second)
-	fmt.Printf("Worker %d done\n", id)
-}
-
+// 速率限制是控制资源利用率和保持服务质量的重要机制。
+// Go 优雅地支持 goroutines、channels 和 tickers 的速率限制。
 func main() {
 
-	// 这个 WaitGroup 用于等待这里启动的所有 goroutine 完成。
-	// 注意：如果一个 WaitGroup 显式传递给函数，它应该通过指针来完成。
-	var wg sync.WaitGroup
-
-	// 启动几个 goroutine 并为每个增加 WaitGroup 计数器。
+	// 首先我们来看看基本的速率限制。
+	// 假设我们想限制对传入请求的处理。我们将通过同名通道处理这些请求。
+	requests := make(chan int, 5)
 	for i := 1; i <= 5; i++ {
-		wg.Add(1)
+		requests <- i
+	}
+	close(requests)
 
-		// 避免在每个 goroutine 闭包中重复使用相同的 i 值。
-		i := i
+	// // 此限制器通道将每 200 毫秒接收一个值。这是我们速率限制方案中的调节器。
+	limiter := time.Tick(200 * time.Millisecond)
 
-		// 将 worker 调用封装在一个闭包中，确保告诉 WaitGroup 该 worker 已完成。
-		// 这样，worker 本身就不必知道其执行过程中涉及的并发原语。
-		go func() {
-			defer wg.Done()
-			worker(i)
-		}()
+	// 通过在处理每个请求之前阻止来自限制器通道的接收，我们将自己限制为每 200 毫秒 1 个请求。
+	for req := range requests {
+		<-limiter
+		fmt.Println("request", req, time.Now())
 	}
 
-	wg.Wait()
+	// 我们可能希望在我们的速率限制方案中允许短暂的请求突发，同时保留整体速率限制。
+	// 我们可以通过缓冲我们的限制器通道来实现这一点。这个 burstyLimiter 通道将允许最多 3 个事件的突发。
+	burstyLimiter := make(chan time.Time, 3)
 
-	// 每次调用的工作人员启动和完成的顺序可能不同。
+	// 填充通道以表示允许的突发。
+	for i := 0; i < 3; i++ {
+		burstyLimiter <- time.Now()
+	}
+
+	// 每 200 毫秒，我们将尝试向 burstyLimiter 添加一个新值，最大限制为 3。
+	go func() {
+		for t := range time.Tick(200 * time.Millisecond) {
+			burstyLimiter <- t
+		}
+	}()
+
+	// 现在模拟另外 5 个传入请求。其中前 3 个将受益于 burstyLimiter 的突发能力。
+	burstyRequests := make(chan int, 5)
+	for i := 1; i <= 5; i++ {
+		burstyRequests <- i
+	}
+	close(burstyRequests)
+	for req := range burstyRequests {
+		<-burstyLimiter
+		fmt.Println("request", req, time.Now())
+	}
+
+	// 对于第二批请求，由于突发速率限制，我们立即为前 3 个请求提供服务，然后为其余 2 个请求提供约 200 毫秒的延迟。
 }
