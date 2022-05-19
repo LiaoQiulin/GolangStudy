@@ -1,45 +1,30 @@
 package main
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
-// Defer 用于确保在程序执行的后期执行函数调用，通常用于清理目的。
-//  defer 经常用于例如 ensure  和 finally  在其他语言使用的地方。
+// Go 可以通过使用 recover 内置函数从 panic 中恢复。 recover 可以阻止 panic 中止程序并让它继续执行。
 
-// 假设我们想创建一个文件，写入它，然后在完成后关闭。下面是我们如何使用 defer 来做到这一点。
+// 一个有用的例子：如果一个客户端连接出现严重错误，服务器不希望崩溃。
+// 相反，服务器会想要关闭该连接并继续为其他客户端提供服务。事实上，这就是 Go 的 net/http 默认为 HTTP 服务器所做的。
+
+// 这个函数 panic 。
+func mayPanic() {
+	panic("a problem")
+}
+
+// 必须在 defer 函数中调用 recover 。当封闭函数发生 panic 时，defer 将激活并且其中的恢复调用将捕获 panic。
 func main() {
 
-	// 在使用 createFile 获取文件对象后，我们立即使用 closeFile 推迟关闭该文件。
-	// 这将在 writeFile 完成后，在封闭函数（main）的末尾执行。
-	f := createFile("D://defer.txt")
-	defer closeFile(f)
-	writeFile(f)
-}
+	defer func() {
+		// recover 的返回值是调用 panic 时引发的错误。
+		if r := recover(); r != nil {
 
-func createFile(p string) *os.File {
-	fmt.Println("creating")
-	f, err := os.Create(p)
-	if err != nil {
-		panic(err)
-	}
-	return f
-}
+			fmt.Println("Recovered. Error:\n", r)
+		}
+	}()
 
-func writeFile(f *os.File) {
-	fmt.Println("writing")
-	fmt.Fprintln(f, "data")
+	mayPanic()
 
-}
-
-// 关闭文件时检查错误很重要，即使在延迟函数中也是如此。
-func closeFile(f *os.File) {
-	fmt.Println("closing")
-	err := f.Close()
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+	// 这段代码不会运行，因为 mayPanic 出现恐慌。 main 的执行在 panic 点停止，并在 defer 关闭时恢复。
+	fmt.Println("After mayPanic()")
 }
