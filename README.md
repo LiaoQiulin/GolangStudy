@@ -1,1 +1,1 @@
-# String Functions
+# String Formatting
