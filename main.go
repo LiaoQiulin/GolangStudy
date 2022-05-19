@@ -2,45 +2,43 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
-// 在本例中，我们将了解如何使用 goroutine 和通道实现工作池。
+// 要等待多个 goroutine 完成，我们可以使用等待组。
 
-// 这是worker，我们将在其中运行几个并发实例。
-// 这些工作人员将在 jobs 通道上接收工作，并在 results 上发送相应的结果。
-// 我们将为每个作业睡一秒钟以模拟一项耗时的任务。
-func worker(id int, jobs <-chan int, results chan<- int) {
-	for j := range jobs {
-		fmt.Println("worker", id, "started  job", j)
-		time.Sleep(time.Second)
-		fmt.Println("worker", id, "finished job", j)
-		results <- j * 2
-	}
+// 这是我们将在每个 goroutine 中运行的函数。
+func worker(id int) {
+	fmt.Printf("Worker %d starting\n", id)
+
+	// 睡眠以模拟耗时任务。
+	time.Sleep(time.Second)
+	fmt.Printf("Worker %d done\n", id)
 }
 
 func main() {
 
-	// 为了使用我们的工人池，我们需要向他们发送工作并收集他们的结果。我们为此制作了 2 个通道。
-	const numJobs = 5
-	jobs := make(chan int, numJobs)
-	results := make(chan int, numJobs)
+	// 这个 WaitGroup 用于等待这里启动的所有 goroutine 完成。
+	// 注意：如果一个 WaitGroup 显式传递给函数，它应该通过指针来完成。
+	var wg sync.WaitGroup
 
-	// 这启动了 3 个工作人员，最初被阻止是因为还没有工作。
-	for w := 1; w <= 3; w++ {
-		go worker(w, jobs, results)
+	// 启动几个 goroutine 并为每个增加 WaitGroup 计数器。
+	for i := 1; i <= 5; i++ {
+		wg.Add(1)
+
+		// 避免在每个 goroutine 闭包中重复使用相同的 i 值。
+		i := i
+
+		// 将 worker 调用封装在一个闭包中，确保告诉 WaitGroup 该 worker 已完成。
+		// 这样，worker 本身就不必知道其执行过程中涉及的并发原语。
+		go func() {
+			defer wg.Done()
+			worker(i)
+		}()
 	}
 
-	// 在这里，我们发送 5 个工作，然后关闭该通道以表明这就是我们所有的工作。
-	for j := 1; j <= numJobs; j++ {
-		jobs <- j
-	}
-	close(jobs)
+	wg.Wait()
 
-	// 最后我们收集所有工作的结果。这也确保了工作者 goroutines 已经完成。等待多个 goroutine 的另一种方法是使用 WaitGroup
-	for a := 1; a <= numJobs; a++ {
-		<-results
-	}
-
-	// 我们的运行程序显示了由不同工人执行的 5 个作业。该程序只需要大约 2 秒，尽管总共做了大约 5 秒的工作，因为有 3 名工人同时操作。
+	// 每次调用的工作人员启动和完成的顺序可能不同。
 }
