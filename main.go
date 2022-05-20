@@ -2,49 +2,79 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
-	"strings"
 )
 
-// filepath 包提供了解析和构造文件路径的功能，可以在操作系统之间移植；
-// 例如，Linux 上的 dir/file 与 Windows 上的 dir\file。
+// Go 有几个有用的函数来处理文件系统中的目录。
+
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
 func main() {
 
-	// Join 应该用于以可移植的方式构造路径。它接受任意数量的参数并从它们构造一个分层路径。
-	p := filepath.Join("dir1", "dir2", "filename")
-	fmt.Println("p:", p)
+	// 在当前工作目录中创建一个新的子目录。
+	err := os.Mkdir("subdir", 0755)
+	check(err)
 
-	// 您应该始终使用 Join 而不是手动连接 /s 或 \s。除了提供可移植性之外，Join 还将通过删除多余的分隔符和目录更改来规范路径。
-	fmt.Println(filepath.Join("dir1//", "filename"))
-	fmt.Println(filepath.Join("dir1/../dir1", "filename"))
+	// 创建临时目录时，最好推迟删除它们。 os.RemoveAll 将删除整个目录树（类似于 rm -rf）。
+	defer os.RemoveAll("subdir")
 
-	// Dir 和 Base 可用于拆分目录和文件的路径。或者，Split 将在同一个调用中返回两者。
-	fmt.Println("Dir(p):", filepath.Dir(p))
-	fmt.Println("Base(p):", filepath.Base(p))
-
-	// 我们可以检查一个路径是否是绝对的。
-	fmt.Println(filepath.IsAbs("dir/file"))
-	fmt.Println(filepath.IsAbs("/dir/file"))
-
-	filename := "config.json"
-
-	// 一些文件名在点之后有扩展名。我们可以使用 Ext 将扩展名从这些名称中拆分出来。
-	ext := filepath.Ext(filename)
-	fmt.Println(ext)
-
-	// 要查找已删除扩展名的文件名，请使用 strings.TrimSuffix。
-	fmt.Println(strings.TrimSuffix(filename, ext))
-
-	rel, err := filepath.Rel("a/b", "a/b/t/file")
-	if err != nil {
-		panic(err)
+	// 帮助函数创建一个新的空文件。
+	createEmptyFile := func(name string) {
+		d := []byte("")
+		check(os.WriteFile(name, d, 0644))
 	}
-	fmt.Println(rel)
 
-	// Rel 找到基础和目标之间的相对路径。如果目标不能相对于基数，则返回错误。
-	rel, err = filepath.Rel("a/b", "a/c/t/file")
-	if err != nil {
-		panic(err)
+	createEmptyFile("subdir/file1")
+
+	// 我们可以使用 MkdirAll 创建目录层次结构，包括父目录。这类似于命令行 mkdir -p。
+	err = os.MkdirAll("subdir/parent/child", 0755)
+	check(err)
+
+	createEmptyFile("subdir/parent/file2")
+	createEmptyFile("subdir/parent/file3")
+	createEmptyFile("subdir/parent/child/file4")
+
+	// ReadDir 列出目录内容，返回一片 os.DirEntry 对象。
+	c, err := os.ReadDir("subdir/parent")
+	check(err)
+
+	fmt.Println("Listing subdir/parent")
+	for _, entry := range c {
+		fmt.Println(" ", entry.Name(), entry.IsDir())
 	}
-	fmt.Println(rel)
+
+	// Chdir 让我们改变当前的工作目录，类似于 cd。
+	err = os.Chdir("subdir/parent/child")
+	check(err)
+
+	c, err = os.ReadDir(".")
+	check(err)
+
+	// 现在我们将在列出当前目录时看到 subdir/parent/child 的内容。
+	fmt.Println("Listing subdir/parent/child")
+	for _, entry := range c {
+		fmt.Println(" ", entry.Name(), entry.IsDir())
+	}
+
+	// cd 回到我们开始的地方。
+	err = os.Chdir("../../..")
+	check(err)
+
+	// 我们还可以递归地访问一个目录，包括它的所有子目录。 Walk 接受一个回调函数来处理访问的每个文件或目录。
+	fmt.Println("Visiting subdir")
+	err = filepath.Walk("subdir", visit)
+}
+
+// 对于 filepath.Walk 递归找到的每个文件或目录，都会调用 visit。
+func visit(p string, info os.FileInfo, err error) error {
+	if err != nil {
+		return err
+	}
+	fmt.Println(" ", p, info.IsDir())
+	return nil
 }
