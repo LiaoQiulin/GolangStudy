@@ -1,68 +1,94 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
-	"text/template"
 )
 
-// Go 为创建动态内容或使用 text/template 包向用户显示自定义输出提供了内置支持。
-// 名为 html/template 的同级包提供了相同的 API，但具有额外的安全功能，应该用于生成 HTML。
+// Go 提供了对 JSON 编码和解码的内置支持，包括与内置和自定义数据类型之间的往来。
+
+// 我们将在下面使用这两个结构来演示自定义类型的编码和解码。
+type response1 struct {
+	Page   int
+	Fruits []string
+}
+
+// 只有导出的字段才会在 JSON 中编码/解码。字段必须以大写字母开头才能导出。
+type response2 struct {
+	Page   int      `json:"page"`
+	Fruits []string `json:"fruits"`
+}
 
 func main() {
 
-	// 我们可以创建一个新模板并从字符串中解析其主体。模板是是静态文本和包含在{{...}}中用于动态插入内容的“动作”的混合体。
-	t1 := template.New("t1")
-	t1, err := t1.Parse("Value is {{.}}\n")
-	if err != nil {
+	// 首先，我们将了解如何将基本数据类型编码为 JSON 字符串。以下是原子值的一些示例。
+	bolB, _ := json.Marshal(true)
+	fmt.Println(string(bolB))
+
+	intB, _ := json.Marshal(1)
+	fmt.Println(string(intB))
+
+	fltB, _ := json.Marshal(2.34)
+	fmt.Println(string(fltB))
+
+	strB, _ := json.Marshal("gopher")
+	fmt.Println(string(strB))
+
+	// 这里有一些切片和映射，它们按照您的期望编码为 JSON 数组和对象。
+	slcD := []string{"apple", "peach", "pear"}
+	slcB, _ := json.Marshal(slcD)
+	fmt.Println(string(slcB))
+
+	mapD := map[string]int{"apple": 5, "lettuce": 7}
+	mapB, _ := json.Marshal(mapD)
+	fmt.Println(string(mapB))
+
+	// JSON 包可以自动编码您的自定义数据类型。它只会在编码输出中包含导出的字段，并且默认使用这些名称作为 JSON 键。
+	res1D := &response1{
+		Page:   1,
+		Fruits: []string{"apple", "peach", "pear"}}
+	res1B, _ := json.Marshal(res1D)
+	fmt.Println(string(res1B))
+
+	// 您可以在结构字段声明上使用标签来自定义编码的 JSON 键名。检查上面 response2 的定义以查看此类标记的示例。
+	res2D := &response2{
+		Page:   1,
+		Fruits: []string{"apple", "peach", "pear"}}
+	res2B, _ := json.Marshal(res2D)
+	fmt.Println(string(res2B))
+
+	byt := []byte(`{"num":6.13,"strs":["a","b"]}`)
+
+	// 我们需要提供一个变量，JSON 包可以在其中放置解码后的数据。此 map[string]interface{} 将保存字符串到任意数据类型的映射。
+	var dat map[string]interface{}
+
+	// 这是实际的解码，以及相关错误的检查。
+	if err := json.Unmarshal(byt, &dat); err != nil {
 		panic(err)
 	}
+	fmt.Println(dat)
 
-	// 或者，我们可以使用 template.Must 函数来恐慌(panic) Parse 返回错误。这对于在全局范围内初始化的模板特别有用。
-	t1 = template.Must(t1.Parse("Value: {{.}}\n"))
+	// 为了使用解码映射中的值，我们需要将它们转换为适当的类型。例如，这里我们将 num 中的值转换为预期的 float64 类型。
+	num := dat["num"].(float64)
+	fmt.Println(num)
 
-	// 通过“执行”模板，我们为其操作生成具有特定值的文本。 {{.}} 动作被作为参数传递给 Execute 的值替换。
-	t1.Execute(os.Stdout, "some text")
-	t1.Execute(os.Stdout, 5)
-	t1.Execute(os.Stdout, []string{
-		"Go",
-		"Rust",
-		"C++",
-		"C#",
-	})
+	// 访问嵌套数据需要一系列转换。
+	strs := dat["strs"].([]interface{})
+	str1 := strs[0].(string)
+	fmt.Println(str1)
 
-	// 我们将在下面使用辅助函数。
-	Create := func(name, t string) *template.Template {
-		return template.Must(template.New(name).Parse(t))
-	}
+	// 我们还可以将 JSON 解码为自定义数据类型。
+	// 这样做的好处是为我们的程序添加了额外的类型安全性，并在访问解码数据时消除了对类型断言的需要。
+	str := `{"page": 1, "fruits": ["apple", "peach"]}`
+	res := response2{}
+	json.Unmarshal([]byte(str), &res)
+	fmt.Println(res)
+	fmt.Println(res.Fruits[0])
 
-	// 如果数据是一个结构，我们可以使用 {{.FieldName}} 操作来访问它的字段。执行模板时，应导出字段以供访问。
-	t2 := Create("t2", "Name: {{.Name}}\n")
-
-	t2.Execute(os.Stdout, struct {
-		Name string
-	}{"Jane Doe"})
-
-	// 这同样适用于map；
-	t2.Execute(os.Stdout, map[string]string{
-		"Name": "Mickey Mouse",
-	})
-
-	// if/else 为模板提供条件执行。如果一个值是类型的默认值，例如 0、空字符串、nil 指针等，则该值被认为是 false。
-	// 此示例演示了模板的另一个功能：在操作中使用 - 来修剪空白。
-	t3 := Create("t3",
-		"{{if . -}} yes {{else -}} no {{end}}\n")
-	t3.Execute(os.Stdout, "not empty")
-	t3.Execute(os.Stdout, " ")
-	t3.Execute(os.Stdout, "")
-
-	// range 块让我们可以遍历切片、数组、映射或通道。在范围块内 {{.}} 设置为迭代的当前项。
-	t4 := Create("t4",
-		"Range: {{range .}}{{.}} {{end}}\n")
-	t4.Execute(os.Stdout,
-		[]string{
-			"Go",
-			"Rust",
-			"C++",
-			"C#",
-		})
+	// 在上面的示例中，我们总是使用字节和字符串作为标准输出中数据和 JSON 表示之间的中间体。
+	// 我们还可以将 JSON 编码直接流式传输到 os.Writers，如 os.Stdout，甚至是 HTTP 响应体。
+	enc := json.NewEncoder(os.Stdout)
+	d := map[string]int{"apple": 5, "lettuce": 7}
+	enc.Encode(d)
 }
