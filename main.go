@@ -1,28 +1,53 @@
 package main
 
 import (
-	b64 "encoding/base64"
+	"bufio"
 	"fmt"
+	"os"
 )
 
-// Go 提供了对 base64 编码/解码的内置支持。
+// 在 Go 中写文件遵循与我们之前看到的读文件模式类似的模式。
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
 func main() {
 
-	// 这是我们将编码/解码的字符串
-	data := "abc123!?$*&()'-=@~"
+	// 首先，这是将字符串（或只是字节）转储到文件中的方法。
+	d1 := []byte("hello\ngo\n")
+	err := os.WriteFile("../dat1", d1, 0644)
+	check(err)
 
-	// Go 支持标准和 URL 兼容的 base64。这是使用标准编码器进行编码的方法。编码器需要一个 []byte，因此我们将字符串转换为该类型。
-	sEnc := b64.StdEncoding.EncodeToString([]byte(data))
-	fmt.Println(sEnc)
+	// 要进行更精细的写入，请打开一个文件进行写入。
+	f, err := os.Create("../dat2")
+	check(err)
 
-	// 解码可能会返回一个错误，如果您还不知道输入格式是否正确，您可以检查该错误。
-	sDec, _ := b64.StdEncoding.DecodeString(sEnc)
-	fmt.Println(string(sDec))
-	fmt.Println()
+	// 打开文件后立即推迟关闭是惯用的。
+	defer f.Close()
 
-	// 这使用与 URL 兼容的 base64 格式进行编码/解码。
-	uEnc := b64.URLEncoding.EncodeToString([]byte(data))
-	fmt.Println(uEnc)
-	uDec, _ := b64.URLEncoding.DecodeString(uEnc)
-	fmt.Println(string(uDec))
+	// 您可以按预期写入字节切片。
+	d2 := []byte{115, 111, 109, 101, 10}
+	n2, err := f.Write(d2)
+	check(err)
+	fmt.Printf("wrote %d bytes\n", n2)
+
+	// 也可以使用 WriteString。
+	n3, err := f.WriteString("writes\n")
+	check(err)
+	fmt.Printf("wrote %d bytes\n", n3)
+
+	// 调用 Sync 将写入刷新到稳定存储。
+	f.Sync()
+
+	// 除了我们之前看到的缓冲读取器之外，bufio 还提供缓冲写入器。
+	w := bufio.NewWriter(f)
+	n4, err := w.WriteString("buffered\n")
+	check(err)
+	fmt.Printf("wrote %d bytes\n", n4)
+
+	// 使用 Flush 确保所有缓冲操作都已应用于底层写入器。
+	w.Flush()
+
 }
