@@ -1,68 +1,58 @@
 package main
 
 import (
-	"os"
-	"text/template"
+	"bytes"
+	"fmt"
+	"regexp"
 )
 
-// Go 为创建动态内容或使用 text/template 包向用户显示自定义输出提供了内置支持。
-// 名为 html/template 的同级包提供了相同的 API，但具有额外的安全功能，应该用于生成 HTML。
-
+// Go 提供了对正则表达式的内置支持。以下是 Go 中常见的正则表达式相关任务的一些示例。
 func main() {
 
-	// 我们可以创建一个新模板并从字符串中解析其主体。模板是是静态文本和包含在{{...}}中用于动态插入内容的“动作”的混合体。
-	t1 := template.New("t1")
-	t1, err := t1.Parse("Value is {{.}}\n")
-	if err != nil {
-		panic(err)
-	}
+	// 这将测试模式是否与字符串匹配。
+	match, _ := regexp.MatchString("p([a-z]+)ch", "peach")
+	fmt.Println(match)
 
-	// 或者，我们可以使用 template.Must 函数来恐慌(panic) Parse 返回错误。这对于在全局范围内初始化的模板特别有用。
-	t1 = template.Must(t1.Parse("Value: {{.}}\n"))
+	// 上面我们直接使用了字符串模式，但对于其他正则表达式任务，您需要编译优化的正则表达式结构。
+	r, _ := regexp.Compile("p([a-z]+)ch")
 
-	// 通过“执行”模板，我们为其操作生成具有特定值的文本。 {{.}} 动作被作为参数传递给 Execute 的值替换。
-	t1.Execute(os.Stdout, "some text")
-	t1.Execute(os.Stdout, 5)
-	t1.Execute(os.Stdout, []string{
-		"Go",
-		"Rust",
-		"C++",
-		"C#",
-	})
+	// 这些结构上有许多方法可用。这是我们之前看到的匹配测试。
+	fmt.Println(r.MatchString("peach"))
 
-	// 我们将在下面使用辅助函数。
-	Create := func(name, t string) *template.Template {
-		return template.Must(template.New(name).Parse(t))
-	}
+	// 这会找到正则表达式的匹配项。
+	fmt.Println(r.FindString("peach punch"))
 
-	// 如果数据是一个结构，我们可以使用 {{.FieldName}} 操作来访问它的字段。执行模板时，应导出字段以供访问。
-	t2 := Create("t2", "Name: {{.Name}}\n")
+	// 这也会找到第一个匹配项，但返回匹配项的开始和结束索引，而不是匹配的文本。
+	fmt.Println("idx:", r.FindStringIndex("peach punch"))
 
-	t2.Execute(os.Stdout, struct {
-		Name string
-	}{"Jane Doe"})
+	// 子匹配变体包括有关整个模式匹配和这些匹配中的子匹配的信息。例如，这将返回 p([a-z]+)ch 和 ([a-z]+) 的信息。
+	fmt.Println(r.FindStringSubmatch("peach punch"))
 
-	// 这同样适用于map；
-	t2.Execute(os.Stdout, map[string]string{
-		"Name": "Mickey Mouse",
-	})
+	// 同样，这将返回有关匹配和子匹配索引的信息。
+	fmt.Println(r.FindStringSubmatchIndex("peach punch"))
 
-	// if/else 为模板提供条件执行。如果一个值是类型的默认值，例如 0、空字符串、nil 指针等，则该值被认为是 false。
-	// 此示例演示了模板的另一个功能：在操作中使用 - 来修剪空白。
-	t3 := Create("t3",
-		"{{if . -}} yes {{else -}} no {{end}}\n")
-	t3.Execute(os.Stdout, "not empty")
-	t3.Execute(os.Stdout, " ")
-	t3.Execute(os.Stdout, "")
+	// 这些函数的所有变体适用于输入中的所有匹配项，而不仅仅是第一个。例如查找正则表达式的所有匹配项。
+	fmt.Println(r.FindAllString("peach punch pinch", -1))
 
-	// range 块让我们可以遍历切片、数组、映射或通道。在范围块内 {{.}} 设置为迭代的当前项。
-	t4 := Create("t4",
-		"Range: {{range .}}{{.}} {{end}}\n")
-	t4.Execute(os.Stdout,
-		[]string{
-			"Go",
-			"Rust",
-			"C++",
-			"C#",
-		})
+	// 同样，这将返回有关匹配和子匹配索引的信息。
+	fmt.Println("all:", r.FindAllStringSubmatchIndex(
+		"peach punch pinch", -1))
+
+	// 提供一个非负整数作为这些函数的第二个参数将限制匹配的数量。
+	fmt.Println(r.FindAllString("peach punch pinch", 2))
+
+	// 我们上面的例子有字符串参数，并使用了像 MatchString 这样的名称。我们还可以提供 []byte 参数并从函数名中删除 String。
+	fmt.Println(r.Match([]byte("peach")))
+
+	// 使用正则表达式创建全局变量时，您可以使用 Compile 的 MustCompile 变体。 MustCompile 恐慌而不是返回错误，这使得使用全局变量更安全。
+	r = regexp.MustCompile("p([a-z]+)ch")
+	fmt.Println("regexp:", r)
+
+	// regexp 包也可用于将字符串子集替换为其他值。
+	fmt.Println(r.ReplaceAllString("a peach", "<fruit>"))
+
+	// Func 变体允许您使用给定函数转换匹配的文本。
+	in := []byte("a peach")
+	out := r.ReplaceAllFunc(in, bytes.ToUpper)
+	fmt.Println(string(out))
 }
