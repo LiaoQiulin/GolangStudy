@@ -1,57 +1,52 @@
 package main
 
 import (
-	"encoding/xml"
 	"fmt"
+	"time"
 )
 
-// Go 通过 encoding.xml 包为 XML 和类似 XML 的格式提供内置支持。
-
-// Plant 将映射到 XML。与 JSON 示例类似，字段标签包含编码器和解码器的指令。
-// 这里我们使用 XML 包的一些特殊功能： XMLName 字段名称指示代表此结构的 XML 元素的名称； id,attr 表示 Id 字段是 XML 属性而不是嵌套元素。
-type Plant struct {
-	XMLName xml.Name `xml:"plant"`
-	Id      int      `xml:"id,attr"`
-	Name    string   `xml:"name"`
-	Origin  []string `xml:"origin"`
-}
-
-func (p Plant) String() string {
-	return fmt.Sprintf("Plant id=%v, name=%v, origin=%v",
-		p.Id, p.Name, p.Origin)
-}
-
+// Go 为时间和持续时间提供广泛的支持；这里有些例子。
 func main() {
-	coffee := &Plant{Id: 27, Name: "Coffee"}
-	coffee.Origin = []string{"Ethiopia", "Brazil"}
+	p := fmt.Println
 
-	// 代表我们工厂的 XML；使用 MarshalIndent 生成更易于阅读的输出。
-	out, _ := xml.MarshalIndent(coffee, " ", "  ")
-	fmt.Println(string(out))
+	// 我们将从获取当前时间开始。
+	now := time.Now()
+	p(now)
 
-	// 要将通用 XML 标头添加到输出，请显式添加它。
-	fmt.Println(xml.Header + string(out))
+	// 您可以通过提供年、月、日等来构建时间结构。时间总是与位置相关联，即时区。
+	then := time.Date(
+		2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
+	p(then)
 
-	// 使用 Unmarhshal 将带有 XML 的字节流解析为数据结构。
-	// 如果 XML 格式错误或无法映射到 Plant，则会返回描述性错误。
-	var p Plant
-	if err := xml.Unmarshal(out, &p); err != nil {
-		panic(err)
-	}
-	fmt.Println(p)
+	// 您可以按预期提取时间值的各个分量。
+	p(then.Year())
+	p(then.Month())
+	p(then.Day())
+	p(then.Hour())
+	p(then.Minute())
+	p(then.Second())
+	p(then.Nanosecond())
+	p(then.Location())
 
-	tomato := &Plant{Id: 81, Name: "Tomato"}
-	tomato.Origin = []string{"Mexico", "California"}
+	// 周一至周日工作日也可用。
+	p(then.Weekday())
 
-	// parent>child>plant 字段标签告诉编码器将所有 plants  嵌套在 <parent><child>...
-	type Nesting struct {
-		XMLName xml.Name `xml:"nesting"`
-		Plants  []*Plant `xml:"parent>child>plant"`
-	}
+	// 这些方法比较两个时间，分别测试第一次发生在第二次之前、之后还是同时发生。
+	p(then.Before(now))
+	p(then.After(now))
+	p(then.Equal(now))
 
-	nesting := &Nesting{}
-	nesting.Plants = []*Plant{coffee, tomato}
+	// Sub 方法返回一个 Duration 表示两次之间的间隔。
+	diff := now.Sub(then)
+	p(diff)
 
-	out, _ = xml.MarshalIndent(nesting, " ", "  ")
-	fmt.Println(string(out))
+	// 我们可以以各种单位计算持续时间的长度。
+	p(diff.Hours())
+	p(diff.Minutes())
+	p(diff.Seconds())
+	p(diff.Nanoseconds())
+
+	// 您可以使用 Add 将时间提前一个给定的持续时间，或者使用 负号 将时间向后移动一个持续时间。
+	p(then.Add(diff))
+	p(then.Add(-diff))
 }
