@@ -4,50 +4,32 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 )
 
-// 在 Go 中写文件遵循与我们之前看到的读文件模式类似的模式。
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
+// 行过滤器是一种常见的程序类型，它读取标准输入上的输入，对其进行处理，然后将一些派生结果打印到标准输出。
+// grep 和 sed 是常用的行过滤器。
+
+// 这是 Go 中的一个示例行过滤器，它写入所有输入文本的大写版本。
+// 您可以使用此模式编写自己的 Go 行过滤器。
 
 func main() {
 
-	// 首先，这是将字符串（或只是字节）转储到文件中的方法。
-	d1 := []byte("hello\ngo\n")
-	err := os.WriteFile("../dat1", d1, 0644)
-	check(err)
+	// 用缓冲扫描器包装无缓冲的 os.Stdin 为我们提供了一种方便的 Scan 方法，可以将扫描器推进到下一个令牌；这是默认扫描仪的下一行。
+	scanner := bufio.NewScanner(os.Stdin)
 
-	// 要进行更精细的写入，请打开一个文件进行写入。
-	f, err := os.Create("../dat2")
-	check(err)
+	// 文本从输入返回当前标记，这里是下一行。
+	for scanner.Scan() {
 
-	// 打开文件后立即推迟关闭是惯用的。
-	defer f.Close()
+		ucl := strings.ToUpper(scanner.Text())
 
-	// 您可以按预期写入字节切片。
-	d2 := []byte{115, 111, 109, 101, 10}
-	n2, err := f.Write(d2)
-	check(err)
-	fmt.Printf("wrote %d bytes\n", n2)
+		// 写出大写的行。
+		fmt.Println(ucl)
+	}
 
-	// 也可以使用 WriteString。
-	n3, err := f.WriteString("writes\n")
-	check(err)
-	fmt.Printf("wrote %d bytes\n", n3)
-
-	// 调用 Sync 将写入刷新到稳定存储。
-	f.Sync()
-
-	// 除了我们之前看到的缓冲读取器之外，bufio 还提供缓冲写入器。
-	w := bufio.NewWriter(f)
-	n4, err := w.WriteString("buffered\n")
-	check(err)
-	fmt.Printf("wrote %d bytes\n", n4)
-
-	// 使用 Flush 确保所有缓冲操作都已应用于底层写入器。
-	w.Flush()
-
+	// 在扫描期间检查错误。文件结尾是预期的，Scan 不会将其报告为错误。
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
 }
