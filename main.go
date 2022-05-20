@@ -2,44 +2,33 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
+	"strconv"
 )
 
-// Go 的 math/rand 包提供伪随机数生成。
+// 从字符串中解析数字是许多程序中基本但常见的任务。这是在 Go 中的操作方法。
 func main() {
 
-	// 例如，rand.Intn 返回一个随机整数 n，0 <= n < 100。
-	fmt.Print(rand.Intn(100), ",")
-	fmt.Print(rand.Intn(100))
-	fmt.Println()
+	// 使用 ParseFloat，这 64 表示要解析多少位精度。
+	f, _ := strconv.ParseFloat("1.234", 64)
+	fmt.Println(f)
 
-	// rand.Float64 返回一个 float64 f, 0.0 <= f < 1.0。
-	fmt.Println(rand.Float64())
+	// 对于 ParseInt，0 表示从字符串推断基数。 64 要求结果适合 64 位。
+	i, _ := strconv.ParseInt("123", 0, 64)
+	fmt.Println(i)
 
-	// 这可用于生成其他范围内的随机浮点数，例如 5.0 <= f' < 10.0。
-	fmt.Print((rand.Float64()*5)+5, ",")
-	fmt.Print((rand.Float64() * 5) + 5)
-	fmt.Println()
+	// ParseInt 将识别十六进制格式的数字。
+	d, _ := strconv.ParseInt("0x1c8", 0, 64)
+	fmt.Println(d)
 
-	// 默认数字生成器是确定性的，因此默认情况下每次都会生成相同的数字序列。
-	// 为了产生不同的序列，给它一个改变的种子。请注意，这对于您打算保密的随机数使用是不安全的，请使用 crypto/rand。
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r1 := rand.New(s1)
+	// ParseUint 也可用。
+	u, _ := strconv.ParseUint("789", 0, 64)
+	fmt.Println(u)
 
-	// 调用生成的 rand.Rand 就像 rand 包中的函数一样。
-	fmt.Print(r1.Intn(100), ",")
-	fmt.Print(r1.Intn(100))
-	fmt.Println()
+	// Atoi 是基本的 base-10 int 解析的便利函数。
+	k, _ := strconv.Atoi("135")
+	fmt.Println(k)
 
-	// 如果您使用相同的数字为源播种，它会产生相同的随机数序列。
-	s2 := rand.NewSource(42)
-	r2 := rand.New(s2)
-	fmt.Print(r2.Intn(100), ",")
-	fmt.Print(r2.Intn(100))
-	fmt.Println()
-	s3 := rand.NewSource(42)
-	r3 := rand.New(s3)
-	fmt.Print(r3.Intn(100), ",")
-	fmt.Print(r3.Intn(100))
+	// 解析函数在输入错误时返回错误。
+	_, e := strconv.Atoi("wat")
+	fmt.Println(e)
 }
