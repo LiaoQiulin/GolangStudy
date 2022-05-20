@@ -2,33 +2,46 @@ package main
 
 import (
 	"fmt"
-	"strconv"
+	"net"
+	"net/url"
 )
 
-// 从字符串中解析数字是许多程序中基本但常见的任务。这是在 Go 中的操作方法。
+// URL 提供了一种统一的方式来定位资源。这是在 Go 中解析 URL 的方法。
 func main() {
 
-	// 使用 ParseFloat，这 64 表示要解析多少位精度。
-	f, _ := strconv.ParseFloat("1.234", 64)
-	fmt.Println(f)
+	// 我们将解析这个示例 URL，其中包括 scheme, authentication info, host, port, path, query params, and query片段。
+	s := "postgres://user:pass@host.com:5432/path?k=v#f"
 
-	// 对于 ParseInt，0 表示从字符串推断基数。 64 要求结果适合 64 位。
-	i, _ := strconv.ParseInt("123", 0, 64)
-	fmt.Println(i)
+	// 解析 URL 并确保没有错误。
+	u, err := url.Parse(s)
+	if err != nil {
+		panic(err)
+	}
 
-	// ParseInt 将识别十六进制格式的数字。
-	d, _ := strconv.ParseInt("0x1c8", 0, 64)
-	fmt.Println(d)
+	// 访问该 scheme 很简单。
+	fmt.Println(u.Scheme)
 
-	// ParseUint 也可用。
-	u, _ := strconv.ParseUint("789", 0, 64)
-	fmt.Println(u)
+	// 用户包含所有认证信息；在此调用用户名和密码以获取各个值。
+	fmt.Println(u.User)
+	fmt.Println(u.User.Username())
+	p, _ := u.User.Password()
+	fmt.Println(p)
 
-	// Atoi 是基本的 base-10 int 解析的便利函数。
-	k, _ := strconv.Atoi("135")
-	fmt.Println(k)
+	// Host 包含主机名和端口（如果存在）。使用 SplitHostPort 提取它们。
+	fmt.Println(u.Host)
+	host, port, _ := net.SplitHostPort(u.Host)
+	fmt.Println(host)
+	fmt.Println(port)
 
-	// 解析函数在输入错误时返回错误。
-	_, e := strconv.Atoi("wat")
-	fmt.Println(e)
+	// 这里我们提取路径和#后面的片段。
+	fmt.Println(u.Path)
+	fmt.Println(u.Fragment)
+
+	// 要以 k=v 格式的字符串获取查询参数，请使用 RawQuery。
+	// 您还可以将查询参数解析为地图。解析的查询参数映射是从字符串到字符串切片，因此如果您只想要第一个值，请索引到 [0]。
+	fmt.Println(u.RawQuery)
+	m, _ := url.ParseQuery(u.RawQuery)
+	fmt.Println(m)
+	fmt.Println(m["k"][0])
+
 }
