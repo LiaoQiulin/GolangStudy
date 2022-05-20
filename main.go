@@ -1,24 +1,28 @@
 package main
 
 import (
-	"crypto/sha256"
+	b64 "encoding/base64"
 	"fmt"
 )
 
-// SHA256 哈希经常用于计算二进制或文本 blob 的短标识。
-// 例如，TL​​S/SSL 证书使用 SHA256 来计算证书的签名。这是在 Go 中计算 SHA256 哈希的方法。
+// Go 提供了对 base64 编码/解码的内置支持。
 func main() {
-	s := "sha256 this string"
 
-	// 在这里，我们从一个新的哈希开始。
-	h := sha256.New()
+	// 这是我们将编码/解码的字符串
+	data := "abc123!?$*&()'-=@~"
 
-	// 写入需要字节。如果您有一个字符串 s，请使用 []byte(s) 将其强制转换为字节。
-	h.Write([]byte(s))
+	// Go 支持标准和 URL 兼容的 base64。这是使用标准编码器进行编码的方法。编码器需要一个 []byte，因此我们将字符串转换为该类型。
+	sEnc := b64.StdEncoding.EncodeToString([]byte(data))
+	fmt.Println(sEnc)
 
-	// 这将最终的哈希结果作为字节切片。 Sum 的参数可用于附加到现有字节切片：通常不需要它。
-	bs := h.Sum(nil)
+	// 解码可能会返回一个错误，如果您还不知道输入格式是否正确，您可以检查该错误。
+	sDec, _ := b64.StdEncoding.DecodeString(sEnc)
+	fmt.Println(string(sDec))
+	fmt.Println()
 
-	fmt.Println(s)
-	fmt.Printf("%x\n", bs)
+	// 这使用与 URL 兼容的 base64 格式进行编码/解码。
+	uEnc := b64.URLEncoding.EncodeToString([]byte(data))
+	fmt.Println(uEnc)
+	uDec, _ := b64.URLEncoding.DecodeString(uEnc)
+	fmt.Println(string(uDec))
 }

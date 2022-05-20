@@ -1,1 +1,1 @@
-# SHA256 Hashes
+# Base64 Encoding
