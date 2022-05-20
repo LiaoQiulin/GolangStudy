@@ -1,94 +1,57 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/xml"
 	"fmt"
-	"os"
 )
 
-// Go 提供了对 JSON 编码和解码的内置支持，包括与内置和自定义数据类型之间的往来。
+// Go 通过 encoding.xml 包为 XML 和类似 XML 的格式提供内置支持。
 
-// 我们将在下面使用这两个结构来演示自定义类型的编码和解码。
-type response1 struct {
-	Page   int
-	Fruits []string
+// Plant 将映射到 XML。与 JSON 示例类似，字段标签包含编码器和解码器的指令。
+// 这里我们使用 XML 包的一些特殊功能： XMLName 字段名称指示代表此结构的 XML 元素的名称； id,attr 表示 Id 字段是 XML 属性而不是嵌套元素。
+type Plant struct {
+	XMLName xml.Name `xml:"plant"`
+	Id      int      `xml:"id,attr"`
+	Name    string   `xml:"name"`
+	Origin  []string `xml:"origin"`
 }
 
-// 只有导出的字段才会在 JSON 中编码/解码。字段必须以大写字母开头才能导出。
-type response2 struct {
-	Page   int      `json:"page"`
-	Fruits []string `json:"fruits"`
+func (p Plant) String() string {
+	return fmt.Sprintf("Plant id=%v, name=%v, origin=%v",
+		p.Id, p.Name, p.Origin)
 }
 
 func main() {
+	coffee := &Plant{Id: 27, Name: "Coffee"}
+	coffee.Origin = []string{"Ethiopia", "Brazil"}
 
-	// 首先，我们将了解如何将基本数据类型编码为 JSON 字符串。以下是原子值的一些示例。
-	bolB, _ := json.Marshal(true)
-	fmt.Println(string(bolB))
+	// 代表我们工厂的 XML；使用 MarshalIndent 生成更易于阅读的输出。
+	out, _ := xml.MarshalIndent(coffee, " ", "  ")
+	fmt.Println(string(out))
 
-	intB, _ := json.Marshal(1)
-	fmt.Println(string(intB))
+	// 要将通用 XML 标头添加到输出，请显式添加它。
+	fmt.Println(xml.Header + string(out))
 
-	fltB, _ := json.Marshal(2.34)
-	fmt.Println(string(fltB))
-
-	strB, _ := json.Marshal("gopher")
-	fmt.Println(string(strB))
-
-	// 这里有一些切片和映射，它们按照您的期望编码为 JSON 数组和对象。
-	slcD := []string{"apple", "peach", "pear"}
-	slcB, _ := json.Marshal(slcD)
-	fmt.Println(string(slcB))
-
-	mapD := map[string]int{"apple": 5, "lettuce": 7}
-	mapB, _ := json.Marshal(mapD)
-	fmt.Println(string(mapB))
-
-	// JSON 包可以自动编码您的自定义数据类型。它只会在编码输出中包含导出的字段，并且默认使用这些名称作为 JSON 键。
-	res1D := &response1{
-		Page:   1,
-		Fruits: []string{"apple", "peach", "pear"}}
-	res1B, _ := json.Marshal(res1D)
-	fmt.Println(string(res1B))
-
-	// 您可以在结构字段声明上使用标签来自定义编码的 JSON 键名。检查上面 response2 的定义以查看此类标记的示例。
-	res2D := &response2{
-		Page:   1,
-		Fruits: []string{"apple", "peach", "pear"}}
-	res2B, _ := json.Marshal(res2D)
-	fmt.Println(string(res2B))
-
-	byt := []byte(`{"num":6.13,"strs":["a","b"]}`)
-
-	// 我们需要提供一个变量，JSON 包可以在其中放置解码后的数据。此 map[string]interface{} 将保存字符串到任意数据类型的映射。
-	var dat map[string]interface{}
-
-	// 这是实际的解码，以及相关错误的检查。
-	if err := json.Unmarshal(byt, &dat); err != nil {
+	// 使用 Unmarhshal 将带有 XML 的字节流解析为数据结构。
+	// 如果 XML 格式错误或无法映射到 Plant，则会返回描述性错误。
+	var p Plant
+	if err := xml.Unmarshal(out, &p); err != nil {
 		panic(err)
 	}
-	fmt.Println(dat)
+	fmt.Println(p)
 
-	// 为了使用解码映射中的值，我们需要将它们转换为适当的类型。例如，这里我们将 num 中的值转换为预期的 float64 类型。
-	num := dat["num"].(float64)
-	fmt.Println(num)
+	tomato := &Plant{Id: 81, Name: "Tomato"}
+	tomato.Origin = []string{"Mexico", "California"}
 
-	// 访问嵌套数据需要一系列转换。
-	strs := dat["strs"].([]interface{})
-	str1 := strs[0].(string)
-	fmt.Println(str1)
+	// parent>child>plant 字段标签告诉编码器将所有 plants  嵌套在 <parent><child>...
+	type Nesting struct {
+		XMLName xml.Name `xml:"nesting"`
+		Plants  []*Plant `xml:"parent>child>plant"`
+	}
 
-	// 我们还可以将 JSON 解码为自定义数据类型。
-	// 这样做的好处是为我们的程序添加了额外的类型安全性，并在访问解码数据时消除了对类型断言的需要。
-	str := `{"page": 1, "fruits": ["apple", "peach"]}`
-	res := response2{}
-	json.Unmarshal([]byte(str), &res)
-	fmt.Println(res)
-	fmt.Println(res.Fruits[0])
+	nesting := &Nesting{}
+	nesting.Plants = []*Plant{coffee, tomato}
 
-	// 在上面的示例中，我们总是使用字节和字符串作为标准输出中数据和 JSON 表示之间的中间体。
-	// 我们还可以将 JSON 编码直接流式传输到 os.Writers，如 os.Stdout，甚至是 HTTP 响应体。
-	enc := json.NewEncoder(os.Stdout)
-	d := map[string]int{"apple": 5, "lettuce": 7}
-	enc.Encode(d)
+	out, _ = xml.MarshalIndent(nesting, " ", "  ")
+	fmt.Println(string(out))
 }
