@@ -1,35 +1,50 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
+	"path/filepath"
 	"strings"
 )
 
-// 行过滤器是一种常见的程序类型，它读取标准输入上的输入，对其进行处理，然后将一些派生结果打印到标准输出。
-// grep 和 sed 是常用的行过滤器。
-
-// 这是 Go 中的一个示例行过滤器，它写入所有输入文本的大写版本。
-// 您可以使用此模式编写自己的 Go 行过滤器。
-
+// filepath 包提供了解析和构造文件路径的功能，可以在操作系统之间移植；
+// 例如，Linux 上的 dir/file 与 Windows 上的 dir\file。
 func main() {
 
-	// 用缓冲扫描器包装无缓冲的 os.Stdin 为我们提供了一种方便的 Scan 方法，可以将扫描器推进到下一个令牌；这是默认扫描仪的下一行。
-	scanner := bufio.NewScanner(os.Stdin)
+	// Join 应该用于以可移植的方式构造路径。它接受任意数量的参数并从它们构造一个分层路径。
+	p := filepath.Join("dir1", "dir2", "filename")
+	fmt.Println("p:", p)
 
-	// 文本从输入返回当前标记，这里是下一行。
-	for scanner.Scan() {
+	// 您应该始终使用 Join 而不是手动连接 /s 或 \s。除了提供可移植性之外，Join 还将通过删除多余的分隔符和目录更改来规范路径。
+	fmt.Println(filepath.Join("dir1//", "filename"))
+	fmt.Println(filepath.Join("dir1/../dir1", "filename"))
 
-		ucl := strings.ToUpper(scanner.Text())
+	// Dir 和 Base 可用于拆分目录和文件的路径。或者，Split 将在同一个调用中返回两者。
+	fmt.Println("Dir(p):", filepath.Dir(p))
+	fmt.Println("Base(p):", filepath.Base(p))
 
-		// 写出大写的行。
-		fmt.Println(ucl)
+	// 我们可以检查一个路径是否是绝对的。
+	fmt.Println(filepath.IsAbs("dir/file"))
+	fmt.Println(filepath.IsAbs("/dir/file"))
+
+	filename := "config.json"
+
+	// 一些文件名在点之后有扩展名。我们可以使用 Ext 将扩展名从这些名称中拆分出来。
+	ext := filepath.Ext(filename)
+	fmt.Println(ext)
+
+	// 要查找已删除扩展名的文件名，请使用 strings.TrimSuffix。
+	fmt.Println(strings.TrimSuffix(filename, ext))
+
+	rel, err := filepath.Rel("a/b", "a/b/t/file")
+	if err != nil {
+		panic(err)
 	}
+	fmt.Println(rel)
 
-	// 在扫描期间检查错误。文件结尾是预期的，Scan 不会将其报告为错误。
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+	// Rel 找到基础和目标之间的相对路径。如果目标不能相对于基数，则返回错误。
+	rel, err = filepath.Rel("a/b", "a/c/t/file")
+	if err != nil {
+		panic(err)
 	}
+	fmt.Println(rel)
 }
