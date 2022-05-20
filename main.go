@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 )
 
-// Go 有几个有用的函数来处理文件系统中的目录。
+// 在整个程序执行过程中，我们经常希望创建程序退出后不需要的数据。
+// 临时文件和目录对此很有用，因为它们不会随着时间的推移污染文件系统。
 
 func check(e error) {
 	if e != nil {
@@ -16,65 +17,31 @@ func check(e error) {
 
 func main() {
 
-	// 在当前工作目录中创建一个新的子目录。
-	err := os.Mkdir("subdir", 0755)
+	// 创建临时文件的最简单方法是调用 os.CreateTemp。它创建一个文件并打开它以进行读取和写入。
+	// 我们提供 "" 作为第一个参数，因此 os.CreateTemp 将在我们的操作系统的默认位置创建文件。
+	f, err := os.CreateTemp("", "sample.js")
 	check(err)
 
-	// 创建临时目录时，最好推迟删除它们。 os.RemoveAll 将删除整个目录树（类似于 rm -rf）。
-	defer os.RemoveAll("subdir")
+	// 显示临时文件的名称。在基于 Unix 的操作系统上，该目录可能是 /tmp。
+	// 文件名以作为 os.CreateTemp 的第二个参数给出的前缀开头，其余部分是自动选择的，以确保并发调用将始终创建不同的文件名。
+	fmt.Println("Temp file name:", f.Name())
 
-	// 帮助函数创建一个新的空文件。
-	createEmptyFile := func(name string) {
-		d := []byte("")
-		check(os.WriteFile(name, d, 0644))
-	}
+	// 完成后清理文件。操作系统可能会在一段时间后自行清理临时文件，但最好明确地执行此操作。
+	defer os.Remove(f.Name())
 
-	createEmptyFile("subdir/file1")
-
-	// 我们可以使用 MkdirAll 创建目录层次结构，包括父目录。这类似于命令行 mkdir -p。
-	err = os.MkdirAll("subdir/parent/child", 0755)
+	// 我们可以将一些数据写入文件。
+	_, err = f.Write([]byte{1, 2, 3, 4})
 	check(err)
 
-	createEmptyFile("subdir/parent/file2")
-	createEmptyFile("subdir/parent/file3")
-	createEmptyFile("subdir/parent/child/file4")
-
-	// ReadDir 列出目录内容，返回一片 os.DirEntry 对象。
-	c, err := os.ReadDir("subdir/parent")
+	// 如果我们打算写很多临时文件，我们可能更喜欢创建一个临时目录。 os.MkdirTemp 的参数与 CreateTemp 的参数相同，但它返回的是目录名而不是打开的文件。
+	dname, err := os.MkdirTemp("", "sampledir")
 	check(err)
+	fmt.Println("Temp dir name:", dname)
 
-	fmt.Println("Listing subdir/parent")
-	for _, entry := range c {
-		fmt.Println(" ", entry.Name(), entry.IsDir())
-	}
+	defer os.RemoveAll(dname)
 
-	// Chdir 让我们改变当前的工作目录，类似于 cd。
-	err = os.Chdir("subdir/parent/child")
+	// 现在我们可以通过在临时目录前面加上临时文件名来合成临时文件名。
+	fname := filepath.Join(dname, "file1")
+	err = os.WriteFile(fname, []byte{1, 2}, 0666)
 	check(err)
-
-	c, err = os.ReadDir(".")
-	check(err)
-
-	// 现在我们将在列出当前目录时看到 subdir/parent/child 的内容。
-	fmt.Println("Listing subdir/parent/child")
-	for _, entry := range c {
-		fmt.Println(" ", entry.Name(), entry.IsDir())
-	}
-
-	// cd 回到我们开始的地方。
-	err = os.Chdir("../../..")
-	check(err)
-
-	// 我们还可以递归地访问一个目录，包括它的所有子目录。 Walk 接受一个回调函数来处理访问的每个文件或目录。
-	fmt.Println("Visiting subdir")
-	err = filepath.Walk("subdir", visit)
-}
-
-// 对于 filepath.Walk 递归找到的每个文件或目录，都会调用 visit。
-func visit(p string, info os.FileInfo, err error) error {
-	if err != nil {
-		return err
-	}
-	fmt.Println(" ", p, info.IsDir())
-	return nil
 }
