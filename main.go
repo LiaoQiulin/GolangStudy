@@ -3,36 +3,41 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"time"
 )
 
-// 使用 net/http 包编写一个基本的 HTTP 服务器很容易。
-
-// net/http 服务器中的一个基本概念是处理程序。处理程序是实现 http.Handler 接口的对象。
-// 编写处理程序的常用方法是在具有适当签名的函数上使用 http.HandlerFunc 适配器。
+// 在前面的示例中，我们研究了如何设置一个简单的 HTTP 服务器。
+// HTTP 服务器可用于演示 context.Context 用于控制取消的用法。
+// Context 携带跨越 API 边界和 goroutines 的截止日期、取消信号和其他请求范围的值。
 func hello(w http.ResponseWriter, req *http.Request) {
 
-	// 用作处理程序的函数将 http.ResponseWriter 和 http.Request 作为参数。
-	// 响应编写器用于填写 HTTP 响应。这里我们的简单响应只是“hello\n”。
-	fmt.Fprintf(w, "hello\n")
-}
+	// 一个 context.Context 由 net/http 机器为每个请求创建，并且可用于 Context() 方法。
+	ctx := req.Context()
+	fmt.Println(time.Now(), "server: hello handler started")
+	defer func() { fmt.Println(time.Now(), "server: hello handler ended") }()
 
-// 这个处理程序通过读取所有 HTTP 请求标头并将它们回显到响应正文中来做一些更复杂的事情。
-func headers(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("in handle")
-	for name, headers := range req.Header {
-		for _, h := range headers {
-			fmt.Fprintf(w, "%v: %v\n", name, h)
-		}
+	// 在向客户端发送回复之前等待几秒钟。这可以模拟服务器正在做的一些工作。
+	select {
+	case <-time.After(2 * time.Second):
+		fmt.Fprintf(w, "hello\n")
+	case <-ctx.Done():
+		err := ctx.Err()
+		fmt.Println(time.Now(), "server:", err)
+		internalError := http.StatusInternalServerError
+		http.Error(w, err.Error(), internalError)
+		return
 	}
+
+	go func() {
+		<-ctx.Done()
+		fmt.Println(time.Now(), "Done")
+	}()
+
 }
 
 func main() {
 
-	// 我们使用 http.HandleFunc 便利函数在服务器路由上注册我们的处理程序。它在 net/http 包中设置默认路由器，并将函数作为参数。
+	// 和以前一样，我们在“/hello”路由上注册我们的处理程序，然后开始服务。
 	http.HandleFunc("/hello", hello)
-	http.HandleFunc("/headers", headers)
-
-	// 最后，我们使用端口和处理程序调用 ListenAndServe。 nil 告诉它使用我们刚刚设置的默认路由器。
-
 	http.ListenAndServe(":8090", nil)
 }
