@@ -3,80 +3,69 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 )
 
-// 命令行标志是为命令行程序指定选项的常用方法。例如，在 wc -l 中，-l 是一个命令行标志。
-
+// 一些命令行工具，如 go 工具或 git 有许多子命令，每个子命令都有自己的一组标志。
+// 例如，go build 和 go get 是 go 工具的两个不同的子命令。 flag 包让我们可以轻松定义具有自己标志的简单子命令。
 func main() {
 
-	// 基本标志声明可用于字符串、整数和布尔选项。这里我们声明一个带有默认值“foo”和简短描述的字符串标志字。
-	// 这个 flag.String 函数返回一个字符串指针（不是字符串值）；我们将在下面看到如何使用这个指针。
-	wordPtr := flag.String("word", "foo", "a string")
+	// 我们使用 NewFlagSet 函数声明一个子命令，然后继续为这个子命令定义新的标志。
+	fooCmd := flag.NewFlagSet("foo", flag.ExitOnError)
+	fooEnable := fooCmd.Bool("enable", false, "enable")
+	fooName := fooCmd.String("name", "", "name")
 
-	// 这声明了 numb 和 fork 标志，使用与word 标志类似的方法。
-	numbPtr := flag.Int("numb", 42, "an int")
-	forkPtr := flag.Bool("fork", false, "a bool")
+	// 对于不同的子命令，我们可以定义不同的支持标志。
+	barCmd := flag.NewFlagSet("bar", flag.ExitOnError)
+	barLevel := barCmd.Int("level", 0, "level")
 
-	var svar string
-	flag.StringVar(&svar, "svar", "bar", "a string var")
+	// 该子命令应作为程序的第一个参数。
+	if len(os.Args) < 2 {
+		fmt.Println("expected 'foo' or 'bar' subcommands")
+		os.Exit(1)
+	}
 
-	// 声明所有标志后，调用 flag.Parse() 执行命令行解析。
-	flag.Parse()
+	// 检查调用了哪个子命令。
+	switch os.Args[1] {
 
-	// 在这里，我们将只转储已解析的选项和任何尾随位置参数。请注意，我们需要取消引用指针，例如*wordPtr 获取实际的选项值。
-	fmt.Println("word:", *wordPtr)
-	fmt.Println("numb:", *numbPtr)
-	fmt.Println("fork:", *forkPtr)
-	fmt.Println("svar:", svar)
-	fmt.Println("tail:", flag.Args())
+	// 对于每个子命令，我们解析它自己的标志并可以访问尾随位置参数。
+	case "foo":
+		fooCmd.Parse(os.Args[2:])
+		fmt.Println("subcommand 'foo'")
+		fmt.Println("  enable:", *fooEnable)
+		fmt.Println("  name:", *fooName)
+		fmt.Println("  tail:", fooCmd.Args())
+	case "bar":
+		barCmd.Parse(os.Args[2:])
+		fmt.Println("subcommand 'bar'")
+		fmt.Println("  level:", *barLevel)
+		fmt.Println("  tail:", barCmd.Args())
+	default:
+		fmt.Println("expected 'foo' or 'bar' subcommands")
+		os.Exit(1)
+	}
 
 	/*
-		要试验命令行标志程序，最好先编译它，然后直接运行生成的二进制文件。
-		$ go build command-line-flags.go
+		$ go build -o command-line-subcommands.exe
 
-		首先给它所有标志的值来尝试构建的程序。
-		$ ./command-line-flags -word=opt -numb=7 -fork -svar=flag
-		word: opt
-		numb: 7
-		fork: true
-		svar: flag
-		tail: []
+		先调用 foo 子命令。
+		$ ./command-line-subcommands foo -enable -name=joe a1 a2
+		subcommand 'foo'
+			enable: true
+			name: joe
+			tail: [a1 a2]
 
-		请注意，如果您省略标志，它们会自动采用默认值。
-		$ ./command-line-flags -word=opt
-		word: opt
-		numb: 42
-		fork: false
-		svar: bar
-		tail: []
+		现在 bar。
+		$ ./command-line-subcommands bar -level 8 a1
+		subcommand 'bar'
+			level: 8
+			tail: [a1]
 
-		可以在任何标志之后提供尾随位置参数。
-		$ ./command-line-flags -word=opt a1 a2 a3
-		word: opt
-		...
-		tail: [a1 a2 a3]
-
-		请注意，标志包要求所有标志出现在位置参数之前（否则标志将被解释为位置参数）。
-		$ ./command-line-flags -word=opt a1 a2 a3 -numb=7
-		word: opt
-		numb: 42
-		fork: false
-		svar: bar
-		tail: [a1 a2 a3 -numb=7]
-
-		使用 -h 或 --help 标志为命令行程序自动生成帮助文本。
-		$ ./command-line-flags -h
-		Usage of ./command-line-flags:
-		-fork=false: a bool
-		-numb=42: an int
-		-svar="bar": a string var
-		-word="foo": a string
-
-		如果您提供了一个未指定给 flag 包的标志，程序将打印一条错误消息并再次显示帮助文本。
-		$ ./command-line-flags -wat
-		flag provided but not defined: -wat
-		Usage of ./command-line-flags:
-		...
+		但是 bar 不会接受 foo 的标志。
+		$ ./command-line-subcommands bar -enable a1
+		flag provided but not defined: -enable
+		Usage of bar:
+			-level int
+				level
 	*/
-
 }
