@@ -1,64 +1,37 @@
 package main
 
 import (
-	"fmt"
-	"io"
+	"os"
 	"os/exec"
+	"syscall"
 )
 
-// 有时我们的 Go 程序需要生成其他非 Go 进程。
+// 在前面的示例中，我们查看了生成外部进程。当我们需要一个正在运行的 Go 进程可以访问的外部进程时，我们会这样做。
+// 有时我们只想用另一个（可能是非 Go）进程完全替换当前的 Go 进程。为此，我们将使用 Go 对经典 exec 函数的实现。
 func main() {
 
-	// 我们将从一个简单的命令开始，它不带参数或输入，只是将一些内容打印到标准输出。 e
-	// xec.Command 助手创建一个对象来表示这个外部进程。
-	dateCmd := exec.Command("go", "version")
-
-	// Output 方法运行命令，等待它完成并收集它的标准输出。如果没有错误， dateOut 将保存带有日期信息的字节。
-	dateOut, err := dateCmd.Output()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("> go version")
-	fmt.Println(string(dateOut))
-
-	// 如果执行命令时出现问题（例如错误的路径），输出和其他命令方法将返回 *exec.Error，
-	// 如果命令运行但以非零返回码退出，则返回 *exec.ExitError
-	_, err = exec.Command("go").Output()
-	if err != nil {
-		switch e := err.(type) {
-		case *exec.Error:
-			fmt.Println("failed executing:", err)
-		case *exec.ExitError:
-			fmt.Println("command exit rc =", e.ExitCode())
-		default:
-			panic(err)
-		}
+	// 对于我们的示例，我们将执行 ls。
+	// Go 需要一个指向我们要执行的二进制文件的绝对路径，因此我们将使用 exec.LookPath 来查找它（可能是 /bin/ls）。
+	binary, lookErr := exec.LookPath("ls")
+	if lookErr != nil {
+		panic(lookErr)
 	}
 
-	// 接下来，我们将看一个稍微复杂的案例，我们将数据通过管道传输到其标准输入上的外部进程，并从标准输出收集结果。
-	grepCmd := exec.Command("grep", "hello")
+	// Exec 需要切片形式的参数（而不是一个大字符串）。
+	// 我们将给出 ls 一些常见的参数。请注意，第一个参数应该是程序名称。
+	args := []string{"ls", "-a", "-l", "-h"}
 
-	// 在这里，我们显式地抓取输入/输出管道，启动进程，向其写入一些输入，读取结果输出，最后等待进程退出。
-	grepIn, _ := grepCmd.StdinPipe()
-	grepOut, _ := grepCmd.StdoutPipe()
-	grepCmd.Start()
-	grepIn.Write([]byte("hello grep\ngoodbye grep"))
-	grepIn.Close()
-	grepBytes, _ := io.ReadAll(grepOut)
-	grepCmd.Wait()
+	// Exec 还需要一组环境变量才能使用。这里我们只提供我们当前的环境。
+	env := os.Environ()
 
-	// 在上面的例子中我们省略了错误检查，但是你可以使用通常的 if err != nil 模式来检查所有的错误。
-	// 我们也只收集 StdoutPipe 结果，但您可以以完全相同的方式收集 StderrPipe。
-	fmt.Println("> grep hello")
-	fmt.Println(string(grepBytes))
-
-	// 请注意，在生成命令时，我们需要提供一个明确描述的命令和参数数组，而不是能够只传入一个命令行字符串。
-	// 如果你想用一个字符串生成一个完整的命令，你可以使用 bash 的 -c 选项：
-	lsCmd := exec.Command("bash", "-c", "ls -a -l -h")
-	lsOut, err := lsCmd.Output()
-	if err != nil {
-		panic(err)
+	// 这是实际的 syscall.Exec 调用。
+	// 如果这个调用成功，我们进程的执行将到此结束，并被 /bin/ls -a -l -h 进程代替。
+	// 如果有错误，我们将得到一个返回值。
+	execErr := syscall.Exec(binary, args, env)
+	if execErr != nil {
+		panic(execErr)
 	}
-	fmt.Println("> ls -a -l -h")
-	fmt.Println(string(lsOut))
+
+	// 请注意，Go 不提供经典的 Unix fork 函数。
+	// 不过通常这不是问题，因为启动 goroutine、生成进程和执行进程涵盖了 fork 的大多数用例。
 }
