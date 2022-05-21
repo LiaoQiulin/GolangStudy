@@ -2,63 +2,40 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"os/exec"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
-// 有时我们的 Go 程序需要生成其他非 Go 进程。
+// 有时我们希望我们的 Go 程序能够智能地处理 Unix 信号。
+// 例如，我们可能希望服务器在收到 SIGTERM 时正常关闭，或者希望命令行工具在收到 SIGINT 时停止处理输入。
+// 这是在 Go 中使用通道处理信号的方法。
 func main() {
 
-	// 我们将从一个简单的命令开始，它不带参数或输入，只是将一些内容打印到标准输出。 e
-	// xec.Command 助手创建一个对象来表示这个外部进程。
-	dateCmd := exec.Command("go", "version")
+	// Go 信号通知通过在通道上发送 os.Signal 值来工作。
+	// 我们将创建一个频道来接收这些通知。请注意，此通道应被缓冲。
+	sigs := make(chan os.Signal, 1)
 
-	// Output 方法运行命令，等待它完成并收集它的标准输出。如果没有错误， dateOut 将保存带有日期信息的字节。
-	dateOut, err := dateCmd.Output()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("> go version")
-	fmt.Println(string(dateOut))
+	// signal.Notify 注册给定通道以接收指定信号的通知。
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	// 如果执行命令时出现问题（例如错误的路径），输出和其他命令方法将返回 *exec.Error，
-	// 如果命令运行但以非零返回码退出，则返回 *exec.ExitError
-	_, err = exec.Command("go").Output()
-	if err != nil {
-		switch e := err.(type) {
-		case *exec.Error:
-			fmt.Println("failed executing:", err)
-		case *exec.ExitError:
-			fmt.Println("command exit rc =", e.ExitCode())
-		default:
-			panic(err)
-		}
-	}
+	// 我们可以在 main 函数中接收来自 sigs 的信息，但让我们看看如何在单独的 goroutine 中完成，以演示更真实的优雅关闭场景。
+	done := make(chan bool, 1)
 
-	// 接下来，我们将看一个稍微复杂的案例，我们将数据通过管道传输到其标准输入上的外部进程，并从标准输出收集结果。
-	grepCmd := exec.Command("grep", "hello")
+	// 这个 goroutine 对信号执行阻塞接收。当它得到一个时，它会打印出来，然后通知程序它可以完成。
+	go func() {
 
-	// 在这里，我们显式地抓取输入/输出管道，启动进程，向其写入一些输入，读取结果输出，最后等待进程退出。
-	grepIn, _ := grepCmd.StdinPipe()
-	grepOut, _ := grepCmd.StdoutPipe()
-	grepCmd.Start()
-	grepIn.Write([]byte("hello grep\ngoodbye grep"))
-	grepIn.Close()
-	grepBytes, _ := io.ReadAll(grepOut)
-	grepCmd.Wait()
+		sig := <-sigs
+		fmt.Println()
+		fmt.Println(sig)
+		done <- true
+	}()
 
-	// 在上面的例子中我们省略了错误检查，但是你可以使用通常的 if err != nil 模式来检查所有的错误。
-	// 我们也只收集 StdoutPipe 结果，但您可以以完全相同的方式收集 StderrPipe。
-	fmt.Println("> grep hello")
-	fmt.Println(string(grepBytes))
+	// 程序将在这里等待，直到它获得预期的信号（如上面的 goroutine 在完成时发送一个值所示），然后退出。
+	fmt.Println("awaiting signal")
+	<-done
+	fmt.Println("exiting")
 
-	// 请注意，在生成命令时，我们需要提供一个明确描述的命令和参数数组，而不是能够只传入一个命令行字符串。
-	// 如果你想用一个字符串生成一个完整的命令，你可以使用 bash 的 -c 选项：
-	lsCmd := exec.Command("bash", "-c", "ls -a -l -h")
-	lsOut, err := lsCmd.Output()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("> ls -a -l -h")
-	fmt.Println(string(lsOut))
+	// 当我们运行这个程序时，它会阻塞等待信号。
+	// 通过键入 ctrl-C（终端显示为 ^C），我们可以发送一个 SIGINT 信号，导致程序打印中断然后退出。
 }
