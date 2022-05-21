@@ -1,26 +1,32 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"os"
-	"strings"
+	"net/http"
 )
 
-// 环境变量是一种将配置信息传递给 Unix 程序的通用机制。让我们看看如何设置、获取和列出环境变量。
+// Go 标准库在 net/http 包中提供了对 HTTP 客户端和服务器的出色支持。在本例中，我们将使用它来发出简单的 HTTP 请求。
 func main() {
 
-	// 要设置键/值对，请使用 os.Setenv。要获取键的值，请使用 os.Getenv。
-	// 如果密钥不存在于环境中，这将返回一个空字符串。
-	os.Setenv("FOO", "1")
-	fmt.Println("FOO:", os.Getenv("FOO"))
-	fmt.Println("BAR:", os.Getenv("BAR"))
+	// 向服务器发出 HTTP GET 请求。
+	// http.Get 是创建 http.Client 对象并调用其 Get 方法的便捷快捷方式；它使用具有有用默认设置的 http.DefaultClient 对象。
+	resp, err := http.Get("http://gobyexample.com")
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
 
-	// 使用 os.Environ 列出环境中的所有键/值对。这将返回 KEY=value 形式的字符串切片。
-	// 您可以使用 strings.SplitN 它们来获取键和值。在这里，我们打印所有的键。
-	fmt.Println()
-	for _, e := range os.Environ() {
-		pair := strings.SplitN(e, "=", 2)
-		fmt.Println(pair[0])
+	// 打印 HTTP 响应状态。
+	fmt.Println("Response status:", resp.Status)
+
+	// 打印响应正文的前 5 行。
+	scanner := bufio.NewScanner(resp.Body)
+	for i := 0; scanner.Scan() && i < 5; i++ {
+		fmt.Println(scanner.Text())
 	}
 
+	if err := scanner.Err(); err != nil {
+		panic(err)
+	}
 }
